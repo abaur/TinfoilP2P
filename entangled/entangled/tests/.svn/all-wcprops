@@ -1,0 +1,59 @@
+K 25
+svn:wc:ra_dav:version-url
+V 47
+/svnroot/entangled/!svn/ver/159/entangled/tests
+END
+testKBucket.py
+K 25
+svn:wc:ra_dav:version-url
+V 61
+/svnroot/entangled/!svn/ver/81/entangled/tests/testKBucket.py
+END
+testContact.py
+K 25
+svn:wc:ra_dav:version-url
+V 61
+/svnroot/entangled/!svn/ver/81/entangled/tests/testContact.py
+END
+testRoutingTable.py
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/svnroot/entangled/!svn/ver/94/entangled/tests/testRoutingTable.py
+END
+runalltests.py
+K 25
+svn:wc:ra_dav:version-url
+V 62
+/svnroot/entangled/!svn/ver/150/entangled/tests/runalltests.py
+END
+testProtocol.py
+K 25
+svn:wc:ra_dav:version-url
+V 63
+/svnroot/entangled/!svn/ver/114/entangled/tests/testProtocol.py
+END
+testNode.py
+K 25
+svn:wc:ra_dav:version-url
+V 59
+/svnroot/entangled/!svn/ver/148/entangled/tests/testNode.py
+END
+testDatastore.py
+K 25
+svn:wc:ra_dav:version-url
+V 64
+/svnroot/entangled/!svn/ver/143/entangled/tests/testDatastore.py
+END
+testEncoding.py
+K 25
+svn:wc:ra_dav:version-url
+V 63
+/svnroot/entangled/!svn/ver/159/entangled/tests/testEncoding.py
+END
+testMessages.py
+K 25
+svn:wc:ra_dav:version-url
+V 62
+/svnroot/entangled/!svn/ver/81/entangled/tests/testMessages.py
+END

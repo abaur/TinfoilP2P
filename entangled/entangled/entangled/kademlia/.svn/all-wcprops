@@ -1,0 +1,71 @@
+K 25
+svn:wc:ra_dav:version-url
+V 60
+/svnroot/entangled/!svn/ver/163/entangled/entangled/kademlia
+END
+kbucket.py
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/svnroot/entangled/!svn/ver/121/entangled/entangled/kademlia/kbucket.py
+END
+contact.py
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/svnroot/entangled/!svn/ver/80/entangled/entangled/kademlia/contact.py
+END
+msgtypes.py
+K 25
+svn:wc:ra_dav:version-url
+V 71
+/svnroot/entangled/!svn/ver/80/entangled/entangled/kademlia/msgtypes.py
+END
+constants.py
+K 25
+svn:wc:ra_dav:version-url
+V 73
+/svnroot/entangled/!svn/ver/155/entangled/entangled/kademlia/constants.py
+END
+__init__.py
+K 25
+svn:wc:ra_dav:version-url
+V 72
+/svnroot/entangled/!svn/ver/156/entangled/entangled/kademlia/__init__.py
+END
+msgformat.py
+K 25
+svn:wc:ra_dav:version-url
+V 73
+/svnroot/entangled/!svn/ver/156/entangled/entangled/kademlia/msgformat.py
+END
+routingtable.py
+K 25
+svn:wc:ra_dav:version-url
+V 76
+/svnroot/entangled/!svn/ver/153/entangled/entangled/kademlia/routingtable.py
+END
+protocol.py
+K 25
+svn:wc:ra_dav:version-url
+V 72
+/svnroot/entangled/!svn/ver/163/entangled/entangled/kademlia/protocol.py
+END
+node.py
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/svnroot/entangled/!svn/ver/163/entangled/entangled/kademlia/node.py
+END
+datastore.py
+K 25
+svn:wc:ra_dav:version-url
+V 73
+/svnroot/entangled/!svn/ver/143/entangled/entangled/kademlia/datastore.py
+END
+encoding.py
+K 25
+svn:wc:ra_dav:version-url
+V 72
+/svnroot/entangled/!svn/ver/159/entangled/entangled/kademlia/encoding.py
+END
