@@ -13,12 +13,14 @@ class Contact(object):
     This class contains information on a single remote contact, and also
     provides a direct RPC API to the remote node which it represents
     """
-    def __init__(self, id, ipAddress, udpPort, networkProtocol, firstComm=0):
+    def __init__(self, id=None, ipAddress=None, udpPort=None, networkProtocol=None, firstComm=0, from_dict = None):
         self.id = id
         self.address = ipAddress
         self.port = udpPort
         self._networkProtocol = networkProtocol
         self.commTime = firstComm
+        if not from_dict is None:
+            self.__dict__.update(from_dict)
         
     def __eq__(self, other):
         if isinstance(other, Contact):
