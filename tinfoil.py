@@ -7,6 +7,7 @@
 
 from tintangled import EntangledNode
 import twisted.internet.reactor
+from Crypto.Cipher import AES
 from Crypto.Hash import SHA
 from Crypto.PublicKey import RSA
 from Crypto import Random
@@ -147,23 +148,44 @@ class Node:
       delta[postID] = self.node.iterativeFindValue(postID)
     return delta
 
-  def signMessage(message):
+  # -*- Encryption Methods -*-
+
+  # * Asymmetric(RSA) *
+
+  def _signMessage(message):
     '''Signs the specified message using the node's private key.'''
     hash = SHA.new(message).digest()
     return self.RSAkey.sign(hash, random)
 
-  def verifyMessage(message, signature):
+  def _verifyMessage(message, signature):
     '''Verify a message based on the specified signature.'''
     hash = SHA.new(message).digest()
     return RSAkey.verify(hash, signature)
 
-  def encryptMessage(message):
+  def _encryptMessageRSA(message):
     '''Encrypts the specified message using the node's private key.'''
     return self.RSAkey.encrypt(message, self.random.getrandbits(256))
 
-  def decryptMessage(message):
+  def _decryptMessageRSA(message):
     '''Decrypts the specified message using the node's private key.'''
     return self.RSAkey.decrypt(message)
+
+  # * Symmetric(AES) *
+
+  def _encryptMessageAES(message, key, nounce):
+    '''Encrypts the specified message using AES.'''
+    AESobj = AES.new(key, AES.MODE_CBC, nounce)
+    return AESobj.encrypt(message)
+
+  def _encryptMessageAES(message, key, nounce):
+    '''Decrypts the specified message using the given key.'''
+    AESobj = AES.new(key, AES.MODE_CBC, nounce)
+    return AESobj.decrypt(message)
+
+  def _generateSymmetricKey(length):
+    '''Generates a key for symmetric encryption with a byte length of "length".'''
+    return "".join(chr(random.randrange(0, 256)) for i in xrange(length))
+
 
 if __name__ == '__main__':
   import sys
