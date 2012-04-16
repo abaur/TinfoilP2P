@@ -1,5 +1,11 @@
+# dot-gitignore
 *.pyc
 .DS_Store
 
 # vim swap files ..
 *.swp
+
+# emacs backup files
+*~
+
+# end-of-dot-gitignore
