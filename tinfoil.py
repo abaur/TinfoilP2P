@@ -7,10 +7,15 @@
 
 from tintangled import EntangledNode
 import twisted.internet.reactor
+from Crypto.Hash import SHA
+from Crypto.PublicKey import RSA
+from Crypto import Random
 
 class Node:
   def __init__(self, udpPort=4000):
     self.udpPort = udpPort
+    self.random = Random.new()
+    self.RSAkey = RSA.generate(2048, self.random.read)
 
   ''' Join the social network.
     Calculate our userID and join network at given place.
@@ -81,6 +86,23 @@ class Node:
   def getUpdates(self):
     pass
 
+  def signMessage(message):
+    '''Signs the specified message using the node's private key.'''
+    hash = SHA.new(message).digest()
+    return self.RSAkey.sign(hash, random)
+
+  def verifyMessage(message, signature):
+    '''Verify a message based on the specified signature.'''
+    hash = SHA.new(message).digest()
+    return RSAkey.verify(hash, signature)
+
+  def encryptMessage(message):
+    '''Encrypts the specified message using the node's private key.'''
+    return self.RSAkey.encrypt(message, self.random.getrandbits(256))
+
+  def decryptMessage(message):
+    '''Decrypts the specified message using the node's private key.'''
+    return self.RSAkey.decrypt(message)
 
 if __name__ == '__main__':
   import sys
