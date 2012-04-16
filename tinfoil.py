@@ -186,7 +186,6 @@ class Node:
     '''Generates a key for symmetric encryption with a byte length of "length".'''
     return "".join(chr(random.randrange(0, 256)) for i in xrange(length))
 
-
 if __name__ == '__main__':
   import sys
   if len(sys.argv) < 2:

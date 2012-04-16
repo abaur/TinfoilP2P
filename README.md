@@ -13,9 +13,14 @@ doom).
   - Clement Scheelfeldt Skau, clemenetskau@gmail.com
   - Peter Urbak, peter@dragonwasrobot.com
 - **Created:** 2012-04-11
-- **Last Modified:** 2012-04-11
+- **Last Modified:** 2012-04-16
 - **URL:** https://github.com/abaur/TinfoilP2P
 
 ## Todo
 
-* Stuff
+- Methods
+  - merge stubs with the encryption methods written by (purbak)
+  - ...
+
+- Technologies, etc
+  - Check if Chaffing could increase privacy?
