@@ -19,12 +19,8 @@ doom).
 ## Todo
 
 - Methods
-  - merge stubs with the encryption methods written by (purbak)
   - Generate ID in network:
   	- verify that during generate id in the network that no nodes has cheated by selecting hashes or seeds
   	- make peers sign the procedure if no nodes have cheated
   	- make some structure in selecting peers such that peers have to choose random
   - ...
-
-- Technologies, etc
-  - Check if Chaffing could increase privacy?
