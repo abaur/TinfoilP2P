@@ -52,6 +52,7 @@ class Node:
     '''
     # TODO(cskau): this is just example code for now.
     # We need to modify underlying network protocol for the above.
+    # DONE?
     self.node = EntangledNode(udpPort = self.udpPort)
     self.node.joinNetwork(knownNodes)
     twisted.internet.reactor.run()
@@ -61,16 +62,7 @@ class Node:
     else:
       self.userID = 'our previously issued ID'
 
-  def _getRandomIDFromNetwork(self):e some stored resource with one or more users.
-  Allow other user(s) to access store resource by issuing sharing key
-  unique to the user-resource pair.
-  Code Sketch:
-  sharingKey[resourceID][otherUserID] = encrypt(
-  publicKeys[otherUserID],
-  resourceKeys[resourceID])
-  store(
-  "SharingKey(resourceID, otherUserID)",
- 
+  def _getRandomIDFromNetwork(self):
     """Ask network to generate a pseudo random ID for us, a la FreeNet"""
     # TODO(cskau): stub
     return 0
