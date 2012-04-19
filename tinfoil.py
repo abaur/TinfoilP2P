@@ -11,6 +11,12 @@ from Crypto.PublicKey import RSA
 from Crypto import Random
 from Crypto.Random import random
 
+
+SYMMETRIC_KEY_LENGTH = 32 # (bytes)
+SYMMETRIC_KEY_NOUNCE = 0xbeefcafe
+RSA_BITS = 2048
+
+
 class Node:
 
   def __init__(self, udpPort = 4000):
@@ -23,7 +29,7 @@ class Node:
     #  lose them. Retrieve every time we join.
     self.postKeys = {}
     self.secRandom = Random.new() # cryptographically safe Random function.
-    self.RSAkey = RSA.generate(2048, self.secRandom.read)
+    self.RSAkey = RSA.generate(RSA_BITS, self.secRandom.read)
 
     # NOTE(purbak): right now the public/private keys are just generated on
     # initialization of the node rather than on join. Is this a problem?
@@ -80,6 +86,8 @@ class Node:
         sharingKeys[resourceID][otherUserID])
     """
     # NOTE(purbak): using % is old-style python, use .format instead?
+    # CITATION-NEEDED(cskau): the docs still state this being the way to do it.
+    #  src: http://docs.python.org/library/stdtypes.html#string-formatting
     sharingKeyID = ('%s:share:%s' % (resourceID, friendsID))
     sharingKey = self._encryptForUser(self.postKeys[resourceID], friendsID)
     self.node.publishData(sharingKeyID, sharingKey)
@@ -92,15 +100,20 @@ class Node:
   def _getUserPublicKey(self, userID):
     """Returns the public key corresponding to the specified userID, if any."""
     # NOTE(purbak): Why the concatenation?
+    # (cskau): ..what? this is just a semi-consistent scheme for constructing 
+    #  data labels
     publicKeyID = ('%s:publickey' % (userID))
     return self.node.iterativeFindValue(publicKeyID)
 
   def _encryptKey(self, content, publicKey):
-    """Encrypts content using the specified public key."""
+    """Encrypts content (sharing key) using the specified public key."""
+    # TODO(cskau): I'm fairly certain we need to specify key here.
+    # The idea is to encrypt a peer specific sharing key under another peers 
+    #  public key, so that only he can read it.
     return publicKey.encrypt(content, '') # '' -> K not needed when using RSA.
 
   def _decryptKey(self, content):
-    """Decrypts content  using node's own private key."""
+    """Decrypts content (sharing key) using node's own private key."""
     return self.RSAkey.decrypt(content)
 
   def unshare(self, resourceID, friendsID):
@@ -126,9 +139,12 @@ class Node:
     # NOTE(purbak): Where do you get key used in _encryptPost(key, content)
     # from? Idea: use the _generateSymmetricKey(length) method further down in
     # the code.
-    encryptedContent = self._encryptPost(key, content)
+    # (cskau): Like this?
+    postKey = _generateSymmetricKey(SYMMETRIC_KEY_LENGTH)
+    encryptedContent = self._encryptPost(postKey, content)
     # We need to store post keys used so we can issue sharing keys later
-    self.postKeys[newSequenceNumber] = key
+    self.postKeys[newSequenceNumber] = postKey
+    # TODO(cskau): whenever we update this, we should store it securely in net
     postID = ('%s:post:%s' % (self.userID, newSequenceNumber))
     self.node.publishData(postID, encryptedContent)
     # update our latest sequence number
@@ -136,8 +152,8 @@ class Node:
 
   def _getSequenceNumber(self):
     """Return next, unused sequence number unique to this user."""
-    # TODO(cskau): we probasbly need to ask the network to avoid sync errors
-    #  a user might publish from multiple clients at a time
+    # TODO(cskau): we probably need to ask the network to avoid sync errors.
+    #  Case: a user might publish from multiple clients at a time.
     self.sequenceNumber += 1
     return self.sequenceNumber
 
@@ -148,10 +164,14 @@ class Node:
     @type key: str
 
     """
+    if not len(key) in [16, 24, 32]:
+      raise 'aah ma gaawd!'
     # NOTE(purbak): what to do about the nounce bit of the message.
     # Idea: randomly generate a nounce and send along with the private key.
-    nounce = 'abcdefghijklmnop' # TODO(purbak): Something else.
-    AESkey = AES.new(key, AES.MODE_CBC, nounce)
+    # nounce = 'abcdefghijklmnop' # TODO(purbak): Something else.
+    # TODO(cskau): Enlighten me; what are the implications of having an 
+    #  networl wide shared nounce?
+    AESkey = AES.new(key, AES.MODE_CBC, NOUNCE)
     return AESkey.encrypt(post)
 
   def _decryptPost(self, key, post):
@@ -161,22 +181,25 @@ class Node:
     @type key: str
 
     """
+    if not len(key) in [16, 24, 32]:
+      raise 'aah ma gaawd!'
     # NOTE(purbak): what to do about the nounce bit of the message.
-    nounce = 'abcdefghijklmnop' # TODO(purbak): Something else.
-    AESkey = AES.new(key, AES.MODE_CBC, nounce)
+    #nounce = 'abcdefghijklmnop' # TODO(purbak): Something else.
+    # TODO(cskau): see above
+    AESkey = AES.new(key, AES.MODE_CBC, NOUNCE)
     return AESkey.decrypt(post)
 
   def getUpdates(self, friendsID, lastKnownSequenceNumber):
     """ Check for and fetch new updates on user(s)
     Ask for latest known post from a given user and fetch delta since last
-    fetched update.
+     fetched update.
     Code Sketch:
-    latestSequenceNumber = get("latest(otherUserID)")
-    latestPostID = hash(otherUserID + latestSequenceNumber)
-    latestPost = get(latestPostID)
+      latestSequenceNumber = get("latest(otherUserID)")
+      latestPostID = hash(otherUserID + latestSequenceNumber)
+      latestPost = get(latestPostID)
     """
     latestSequenceNumber = self.node.iterativeFindValue(
-      ('%s:latest' % (friendsID)))
+        ('%s:latest' % (friendsID)))
     delta = {}
     for n in range(lastKnownSequenceNumber, latestSequenceNumber):
       postID = ('%s:post:%s' % (friendsID, n))
@@ -187,17 +210,20 @@ class Node:
 
   def _signMessage(message):
     """Signs the specified message using the node's private key."""
-    hash = SHA.new(message).digest()
-    return self.RSAkey.sign(hash, '')
+    hashValue = SHA.new(message).digest()
+    # TODO(cskau): fetch private key:
+    signingKey = ''
+    return self.RSAkey.sign(hashValue, signingKey)
 
   def _verifyMessage(message, signature):
     """Verify a message based on the specified signature."""
-    hash = SHA.new(message).digest()
-    return RSAkey.verify(hash, signature)
+    hashValue = SHA.new(message).digest()
+    return RSAkey.verify(hashValue, signature)
 
-  def _generateSymmetricKey(length):
+  def _generateSymmetricKey(keyLength):
     """Generates a key for symmetric encryption with a byte length of "length"."""
-    return ''.join(chr(random.randrange(0, 256)) for i in xrange(length))
+    return Crypto.Random.get_random_bytes(keyLength)
+
 
 if __name__ == '__main__':
   import sys
@@ -210,7 +236,7 @@ if __name__ == '__main__':
     except ValueError:
       print('\nUDP_PORT must be an integer value.\n')
       print(
-        'Usage:\n%s UDP_PORT [KNOWN_NODE_IP KNOWN_NODE_PORT]' % sys.argv[0])
+          'Usage:\n%s UDP_PORT [KNOWN_NODE_IP KNOWN_NODE_PORT]' % sys.argv[0])
       sys.exit(1)
 
   if len(sys.argv) == 4:
