@@ -19,8 +19,7 @@ doom).
 ## Todo
 
 - Methods
-  - Generate ID in network:
-  	- verify that during generate id in the network that no nodes has cheated by selecting hashes or seeds
-  	- make peers sign the procedure if no nodes have cheated
-  	- make some structure in selecting peers such that peers have to choose random
-  - ...
+  	- Generate ID in network as s/kademlia does (generate public key with key pattern x, hard to do O(2^c_1 + 2^c_2) but easy to verify O(1))
+  	- Sign messages exchanged (rpcs)
+	- Cache messages or status updates
+	- Make replication management like PASTRY

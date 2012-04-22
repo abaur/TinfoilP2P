@@ -61,8 +61,10 @@ class Node(object):
                                 being transmitted.
         @type networkProtocol: entangled.kademlia.protocol.KademliaProtocol
         """
-        self.id = id
-
+        if id != None:
+            self.id = id
+        else:
+            self.id = self._generateID()
         self.port = udpPort
         self._listeningPort = None # object implementing Twisted IListeningPort
         # This will contain a deferred created when joining the network, to enable publishing/retrieving information from
@@ -73,7 +75,6 @@ class Node(object):
         #self._buckets = []
         #for i in range(160):
         #    self._buckets.append(kbucket.KBucket())
-        self.outstandingMessages = {}
         if routingTableClass == None:
             self._routingTable = routingtable.OptimizedTreeRoutingTable(self.id)
         else:
@@ -113,7 +114,6 @@ class Node(object):
         """
         # Prepare the underlying Kademlia protocol
         self._listeningPort = twisted.internet.reactor.listenUDP(self.port, self._protocol) #IGNORE:E1101
-
         # Create temporary contact information for the list of addresses of known nodes
         if knownNodeAddresses != None:
             bootstrapContacts = []
@@ -123,8 +123,7 @@ class Node(object):
         else:
             bootstrapContacts = None
         # Initiate the Kademlia joining sequence - perform a search for this node's own ID
-
-        
+        self._joinDeferred = self._iterativeFind(self.id, bootstrapContacts)
 #        #TODO: Refresh all k-buckets further away than this node's closest neighbour
 #        def getBucketAfterNeighbour(*args):
 #            for i in range(160):
@@ -134,87 +133,9 @@ class Node(object):
 #        df.addCallback(getBucketAfterNeighbour)
 #        df.addCallback(self._refreshKBuckets)
         #protocol.reactor.callLater(10, self.printContacts)
-            # Start refreshing k-buckets periodically, if necessary
-
-        def callback(result):
-            self.tellNeighboursAboutID(bootstrapContacts)
-
-
-        if bootstrapContacts == None:
-            self.id = self._generateID()
-            self.tellNeighboursAboutID(bootstrapContacts)
-        else:
-            self._joinDeferred = self._generateIDInNetwork(bootstrapContacts)
-            self._joinDeferred.addCallback(callback)
-        
-    def tellNeighboursAboutID(self,bootstrapContacts):
-        print 'Tell neighbours about id'
-        self._joinDeferred = self._iterativeFind(self.id, bootstrapContacts)
         self._joinDeferred.addCallback(self._persistState)
+        # Start refreshing k-buckets periodically, if necessary
         twisted.internet.reactor.callLater(constants.checkRefreshInterval, self._refreshNode) #IGNORE:E1101
-
-    def _generateIDInNetwork(self, bootstrapContacts):
-        contact = random.choice(bootstrapContacts)
-        seededHash = str(random.getrandbits(160))
-        
-        outerDf = defer.Deferred()
-        rpcMethod = getattr(contact, 'joinsNetwork')
-        
-        df = rpcMethod(seededHash, rawResponse = True)
-        return outerDf        
-
-    @rpcmethod
-    def idGeneratedInNetwork(self, id):
-        print 'Id: %s' % id
-        self.id = id
-        self._joinDeferred.callback(id)
-        return "ok"
-
-    @rpcmethod
-    def joinsNetwork(self, hash, nodeToContact = None, contacts = None, **kwargs):
-        print 'Generating id'
-        if nodeToContact == None:
-            nodeToContact = kwargs['_rpcNodeContact']
-            nodeToContact = (nodeToContact.address,nodeToContact.port)
-        if contacts == None:
-            contacts = []
-        contacts.append(self.id)
-        contact = None
-        try:
-            hash = self._generateID(hash)
-            contact = self._routingTable.findCloseNodes(self.id, constants.alpha, self.id)[0]
-        except Exception, e:   
-            #happens if #nodes known is small, like when creating the network so this node is likely the bootstrapping node
-            while len(contacts) < 5:
-                hash = self._generateID(hash)
-                contacts.append(self.id)
-
-        if len(contacts) < 5:
-            try:
-                rpcMethod = getattr(contact, 'joinsNetwork')
-                rpcMethod(hash, nodeToContact, contacts)
-            except Exception, e:
-                print e
-        else:
-            try:
-                print 'Contacted: %s' % contacts
-                newContact = Contact(ipAddress = nodeToContact[0], udpPort = nodeToContact[1])
-                newContact._networkProtocol = self._protocol
-                rpcMethod = getattr(newContact,'idGeneratedInNetwork')
-                rpcMethod(hash) 
-            except Exception, e:
-                print e
-        return "ok"
-
-    def _generateID(self, hash = "0"):
-        """ Generates a 160-bit pseudo-random identifier
-        
-        @return: A globally unique 160-bit pseudo-random identifier
-        @rtype: str
-        """
-        seed = random.getrandbits(160)
-        return hashlib.sha1(str(int(hash.encode("hex"),16) ^ seed)).digest()
-
 
     def printContacts(self):
         print '\n\nNODE CONTACTS\n==============='
@@ -340,9 +261,7 @@ class Node(object):
         @param contact: The contact to add to this node's k-buckets
         @type contact: kademlia.contact.Contact
         """
-        if(contact.id != None):
-            print 'Adding contact: %s' % int(contact.id.encode("hex"),16)
-            self._routingTable.addContact(contact)
+        self._routingTable.addContact(contact)
 
     def removeContact(self, contactID):
         """ Remove the contact with the specified node ID from this node's
@@ -480,6 +399,15 @@ class Node(object):
 #        valKeyTwo = long(keyTwo.encode('hex'), 16)
 #        return valKeyOne ^ valKeyTwo
 
+    def _generateID(self):
+        """ Generates a 160-bit pseudo-random identifier
+        
+        @return: A globally unique 160-bit pseudo-random identifier
+        @rtype: str
+        """
+        hash = hashlib.sha1()
+        hash.update(str(random.getrandbits(255)))
+        return hash.digest()
 
     def _iterativeFind(self, key, startupShortlist=None, rpc='findNode'):
         """ The basic Kademlia iterative lookup operation (for nodes/values)
