@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 # coding: UTF-8
 
-def sharesXBitPrefix(bitpattern1,bitpattern2,prefixLength):
-	bitpattern1LowerBits = (2**prefixLength-1) & bitpattern1
-	bitpattern2LowerBits = (2**prefixLength-1) & bitpattern2
-    return bitpattern2LowerBits & bitpattern1LowerBits != 0
+# Maybe call it compareNBits
+def sharesXBitPrefix(bitpattern1, bitpattern2, prefixLength):
+  # bitmask of all ones in the prefixLength lowest bits
+  bitmask = ((2 ** prefixLength) - 1)
+  return ((bitpattern1 & bitmask) == (bitpattern2 & bitmask))
+
