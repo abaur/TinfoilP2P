@@ -10,12 +10,13 @@ from Crypto.Hash import SHA
 from Crypto.PublicKey import RSA
 from Crypto import Random
 from Crypto.Random import random
+import Crypto
+import binascii
 
 RSA_BITS = 2048
 ID_LENGTH = 20 # in bytes
 
 SYMMETRIC_KEY_LENGTH = 32 # (bytes)
-SYMMETRIC_KEY_NONCE = 0xbeefcafe
 
 class Node:
 
@@ -54,6 +55,9 @@ class Node:
     # DONE?
     self.node = EntangledNode(udpPort = self.udpPort)
     self.node.joinNetwork(knownNodes)
+    print(
+        'Your ID is: %s   - Tell you friends!' % 
+            binascii.hexlify(self.node.id))
     twisted.internet.reactor.run()
     # TODO(cskau): stub~~
     if "joining for the first time":
@@ -62,7 +66,7 @@ class Node:
       self.userID = 'our previously issued ID'
 
   # TODO (purbak): making sure the sharesXPrefixes is used as intended.
-  def _generateRandomID(complexityValue):
+  def _generateRandomID(self, complexityValue):
     '''Generates the NodeID by solving two cryptographic puzzles.'''
 
     # Solve the static cryptographic puzzle.
@@ -164,7 +168,9 @@ class Node:
     # from? Idea: use the _generateSymmetricKey(length) method further down in
     # the code.
     # (cskau): Like this?
-    postKey = _generateSymmetricKey(SYMMETRIC_KEY_LENGTH)
+#    postKey = self._generateSymmetricKey(SYMMETRIC_KEY_LENGTH)
+    # Who removed the _generateSymmetricKey function?
+    postKey = self._generateRandomString(SYMMETRIC_KEY_LENGTH)
     encryptedContent = self._encryptPost(postKey, content)
     # We need to store post keys used so we can issue sharing keys later
     self.postKeys[newSequenceNumber] = postKey
@@ -188,14 +194,14 @@ class Node:
     @type key: str
 
     """
-
     if not len(key) in [16, 24, 32]:
       raise 'aah ma gaawd!'
     # TODO(cskau): As discussed: randomly generate a nonce and send along
     #  with the private key.
-    # nonce = 'abcdefghijklmnop' # TODO(purbak): Something else.
-    AESkey = AES.new(key, AES.MODE_CBC, NONCE)
-    return AESkey.encrypt(post)
+    nonce = 'abcdefghijklmnop' # TODO(purbak): Something else.
+    AESkey = AES.new(key, AES.MODE_CBC, nonce)
+    # NOTE(cskau): *input* has to be a 16-multiple, pad with whitespace
+    return AESkey.encrypt(post + (' ' * (16 - (len(post) % 16))))
 
   def _decryptPost(self, key, post):
     """Decrypt a post with a symmetric key.
@@ -204,12 +210,11 @@ class Node:
     @type key: str
 
     """
-
     if not len(key) in [16, 24, 32]:
       raise 'aah ma gaawd!'
     # TODO(cskau): see above
-    #nonce = 'abcdefghijklmnop' # TODO(purbak): Something else.
-    AESkey = AES.new(key, AES.MODE_CBC, NONCE)
+    nonce = 'abcdefghijklmnop' # TODO(purbak): Something else.
+    AESkey = AES.new(key, AES.MODE_CBC, nonce)
     return AESkey.decrypt(post)
 
   def _processUpdatesResult(self, result):
@@ -232,25 +237,26 @@ class Node:
         for n in range(lastKnownSequenceNumber, lastSequenceNumber):
           postID = ('%s:post:%s' % (friendsID, n))
           # ask network for updates
-          self.node.iterativeFindValue(postID).addCallback(self._processUpdatesResult)
+          self.node.iterativeFindValue(postID).addCallback(
+              self._processUpdatesResult)
     self.node.iterativeFindValue(keyID).addCallback(_processSequenceNumber)
     # NOTE(cskau): it's all deferred so we can't do much here
     # TODO(cskau): maybe just return cache?
     return delta
 
-  def _signMessage(message):
+  def _signMessage(self, message):
     '''Signs the specified message using the node's private key.'''
     hashValue = SHA.new(message).digest()
     return self.RSAkey.sign(hashValue, '')
 
-  def _verifyMessage(message, signature):
+  def _verifyMessage(self, message, signature):
     '''Verify a message based on the specified signature.'''
     hashValue = SHA.new(message).digest()
     return RSAkey.verify(hashValue, signature)
 
-  def _generateRandomString(length):
+  def _generateRandomString(self, length):
     '''Generates a random string with a byte length of "length".'''
-    return "".join(chr(random.randrange(0, 256)) for i in xrange(length))
+    return Crypto.Random.get_random_bytes(length)
 
   ## ---- "Soft" API ----
 
