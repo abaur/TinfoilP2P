@@ -246,6 +246,11 @@ if __name__ == '__main__':
 
   # Create Tinfoil node, join network
   node = Node(udpPort=usePort)
+
+  # Add HTTP "GUI"
+  import tinfront
+  httpPort = (usePort + 10000) % 65535
+  front = tinfront.TinFront(httpPort, node)
+
   node.join(knownNodes)
-  # TODO(cskau): go into interactive mode ?
 
