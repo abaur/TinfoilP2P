@@ -80,7 +80,7 @@ class Node:
     self.RSAkey = RSAkey
 
     # Solve the dynamic cryptographic puzzle.
-    nodeID = SHA.new(pub)
+    self.nodeID = SHA.new(pub)
     binNodeID = int(binascii.hexlify(nodeID), base = 16)
     P = None
     X = None
