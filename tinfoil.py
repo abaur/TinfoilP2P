@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 # coding: UTF-8
 
-'''
-The Tinfoil social network client.
-'''
+"""The Tinfoil social network client."""
 
 from tintangled import EntangledNode
 import twisted.internet.reactor
@@ -17,10 +15,14 @@ import bcrypt
 RSA_BITS = 2048
 ID_LENGTH = 20 # in bytes
 
+SYMMETRIC_KEY_LENGTH = 32 # (bytes)
+SYMMETRIC_KEY_NONCE = 0xbeefcafe
+RSA_BITS = 2048
+
 class Node:
 
   def __init__(self, udpPort = 4000):
-    '''Initializes a Tinfoil Node.'''
+    """Initializes a Tinfoil Node."""
     self.udpPort = udpPort
     # TODO(cskau): we need to ask the network for last known sequence number
     self.sequenceNumber = 0
@@ -31,7 +33,8 @@ class Node:
     self.secRandom = Random.new() # cryptographically safe Random function.
     self.RSAkey = None
 
-    ''' Join the social network.
+  def join(self, knownNodes):
+    '''Join the social network.
     Calculate our userID and join network at given place.
     This involves:
     - requesting a random ID from the network.
@@ -44,11 +47,11 @@ class Node:
     as a proof of work guard against abuse.
     The first requested peer will challenge the new-comer.
     Code Sketch:
-    userID = getRandomIDFromNetwork(myIP)
+      userID = getRandomIDFromNetwork(myIP)
     '''
-  def join(self, knownNodes):
     # TODO(cskau): this is just example code for now.
     # We need to modify underlying network protocol for the above.
+    # DONE?
     self.node = EntangledNode(udpPort = self.udpPort)
     self.node.joinNetwork(knownNodes)
     twisted.internet.reactor.run()
@@ -99,117 +102,126 @@ class Node:
     else:
       return false
 
-  ''' Share some stored resource with one or more users.
-  Allow other user(s) to access store resource by issuing sharing key
-  unique to the user-resource pair.
-  Code Sketch:
-  sharingKey[resourceID][otherUserID] = encrypt(
-  publicKeys[otherUserID],
-  resourceKeys[resourceID])
-  store(
-  "SharingKey(resourceID, otherUserID)",
-  sharingKeys[resourceID][otherUserID])
-  '''
   def share(self, resourceID, friendsID):
+    """Share some stored resource with one or more users.
+    Allow other user(s) to access store resource by issuing sharing key
+    unique to the user-resource pair.
+    Code Sketch:
+      sharingKey[resourceID][otherUserID] = encrypt(
+      publicKeys[otherUserID],
+      resourceKeys[resourceID])
+      store(
+        "SharingKey(resourceID, otherUserID)",
+        sharingKeys[resourceID][otherUserID])
+    """
     sharingKeyID = ('%s:share:%s' % (resourceID, friendsID))
     sharingKey = self._encryptForUser(self.postKeys[resourceID], friendsID)
     self.node.publishData(sharingKeyID, sharingKey)
 
   def _encryptForUser(self, content, userID):
-    '''Encrypt some content asymetrically with user's public key.'''
+    """Encrypt some content asymetrically with user's public key."""
     userKey = self._getUserPublicKey(userID)
     return self._encryptKey(content, userKey)
 
   def _getUserPublicKey(self, userID):
-    '''Returns the public key corresponding to the specified userID, if any.'''
+    """Returns the public key corresponding to the specified userID, if any."""
     publicKeyID = ('%s:publickey' % (userID))
     return self.node.iterativeFindValue(publicKeyID)
 
   def _encryptKey(self, content, publicKey):
-    '''Encrypts content using the specified public key.'''
+    """Encrypts content (sharing key) using the specified public key."""
+    # TODO(cskau): I'm fairly certain we need to specify key here.
+    # The idea is to encrypt a peer specific sharing key under another peers
+    #  public key, so that only he can read it.
     return publicKey.encrypt(content, '') # '' -> K not needed when using RSA.
 
   def _decryptKey(self, content):
-    '''Decrypts content  using node's own private key.'''
+    """Decrypts content (sharing key) using node's own private key."""
     return self.RSAkey.decrypt(content)
 
-  ''' Unshare previously shared resource with one of more users.
-  Ask network to delete specific, existing sharing keys.
-  Note:
-  This can never be safer than the network allows it.
-  Malicious peer might simply keep the sharing keys despite all.
-  Code Sketch:
-  weakDelete(sharingKeys[resourceID][otherUserID])
-  '''
   def unshare(self, resourceID, friendsID):
+    """ Unshare previously shared resource with one of more users.
+    Ask network to delete specific, existing sharing keys.
+    Note:
+    This can never be safer than the network allows it.
+    Malicious peer might simply keep the sharing keys despite all.
+    Code Sketch:
+      weakDelete(sharingKeys[resourceID][otherUserID])
+    """
     shareKeyID = ('%s:share:%s' % (resourceID, friendsID))
     self.node.removeDate(shareKeyID)
 
-  ''' Post some resource to the network.
-  Ask the network to store some (encrypted) resource.
-  Note:
-  This should be encrypted with a symmetric key which will be private
-  until shared through the above share() method.
-  Code Sketch:
-  ...
-  '''
   def post(self, content):
+    """ Post some resource to the network.
+    Ask the network to store some (encrypted) resource.
+    Note:
+    This should be encrypted with a symmetric key which will be private
+    until shared through the above share() method.
+    """
     newSequenceNumber = self._getSequenceNumber()
     # NOTE(purbak): Where do you get key used in _encryptPost(key, content)
     # from? Idea: use the _generateSymmetricKey(length) method further down in
     # the code.
-    encryptedContent = self._encryptPost(key, content)
+    # (cskau): Like this?
+    postKey = _generateSymmetricKey(SYMMETRIC_KEY_LENGTH)
+    encryptedContent = self._encryptPost(postKey, content)
     # We need to store post keys used so we can issue sharing keys later
-    self.postKeys[newSequenceNumber] = key
+    self.postKeys[newSequenceNumber] = postKey
+    # TODO(cskau): whenever we update this, we should store it securely in net
     postID = ('%s:post:%s' % (self.userID, newSequenceNumber))
     self.node.publishData(postID, encryptedContent)
     # update our latest sequence number
     self.node.publishData('%s:latest', newSequenceNumber)
 
   def _getSequenceNumber(self):
-    '''Return next, unused sequence number unique to this user.
-    '''
-    # TODO(cskau): we probasbly need to ask the network to avoid sync errors
-    #  a user might publish from multiple clients at a time
+    """Return next, unused sequence number unique to this user."""
+    # TODO(cskau): we probably need to ask the network to avoid sync errors.
+    #  Case: a user might publish from multiple clients at a time.
     self.sequenceNumber += 1
     return self.sequenceNumber
 
   def _encryptPost(self, key, post):
-    '''Encrypt a post with a symmetric key.
+    """Encrypt a post with a symmetric key.
 
     @param key: must be 16, 24, or 32 bytes long.
     @type key: str
 
-    '''
-    # NOTE(purbak): what to do about the nonce bit of the message.
-    # Idea: randomly generate a nonce and send along with the private key.
-    nonce = 'abcdefghijklmnop' # TODO(purbak): Something else.
-    AESkey = AES.new(key, AES.MODE_CBC, nonce)
+    """
+
+    if not len(key) in [16, 24, 32]:
+      raise 'aah ma gaawd!'
+    # TODO(cskau): As discussed: randomly generate a nonce and send along
+    #  with the private key.
+    # nonce = 'abcdefghijklmnop' # TODO(purbak): Something else.
+    AESkey = AES.new(key, AES.MODE_CBC, NONCE)
     return AESkey.encrypt(post)
 
   def _decryptPost(self, key, post):
-    '''Decrypt a post with a symmetric key.
+    """Decrypt a post with a symmetric key.
 
     @param key: must be 16, 24, or 32 bytes long.
     @type key: str
 
-    '''
-    # NOTE(purbak): what to do about the nonce bit of the message.
-    nonce = 'abcdefghijklmnop' # TODO(purbak): Something else.
-    AESkey = AES.new(key, AES.MODE_CBC, nonce)
+    """
+
+    if not len(key) in [16, 24, 32]:
+      raise 'aah ma gaawd!'
+    # TODO(cskau): see above
+    #nonce = 'abcdefghijklmnop' # TODO(purbak): Something else.
+    AESkey = AES.new(key, AES.MODE_CBC, NONCE)
     return AESkey.decrypt(post)
 
-  ''' Check for and fetch new updates on user(s)
-  Ask for latest known post from a given user and fetch delta since last
-  fetched update.
-  Code Sketch:
-  latestSequenceNumber = get("latest(otherUserID)")
-  latestPostID = hash(otherUserID + latestSequenceNumber)
-  latestPost = get(latestPostID)
-  '''
   def getUpdates(self, friendsID, lastKnownSequenceNumber):
+    """ Check for and fetch new updates on user(s)
+    Ask for latest known post from a given user and fetch delta since last
+     fetched update.
+    Code Sketch:
+      latestSequenceNumber = get("latest(otherUserID)")
+      latestPostID = hash(otherUserID + latestSequenceNumber)
+      latestPost = get(latestPostID)
+    """
     latestSequenceNumber = self.node.iterativeFindValue(
-      ('%s:latest' % (friendsID)))
+        ('%s:latest' % (friendsID)))
     delta = {}
     for n in range(lastKnownSequenceNumber, latestSequenceNumber):
       postID = ('%s:post:%s' % (friendsID, n))
@@ -218,18 +230,17 @@ class Node:
 
   def _signMessage(message):
     '''Signs the specified message using the node's private key.'''
-    msgHash = SHA.new(message).digest()
-    return self.RSAkey.sign(msgHash, '')
+    hashValue = SHA.new(message).digest()
+    return self.RSAkey.sign(hashValue, '')
 
   def _verifyMessage(message, signature):
     '''Verify a message based on the specified signature.'''
-    msgHash = SHA.new(message).digest()
-    return RSAkey.verify(msgHash, signature)
+    hashValue = SHA.new(message).digest()
+    return RSAkey.verify(hashValue, signature)
 
   def _generateRandomString(length):
     '''Generates a random string with a byte length of "length".'''
     return "".join(chr(random.randrange(0, 256)) for i in xrange(length))
-
 
 if __name__ == '__main__':
   import sys
@@ -242,7 +253,7 @@ if __name__ == '__main__':
     except ValueError:
       print('\nUDP_PORT must be an integer value.\n')
       print(
-        'Usage:\n%s UDP_PORT [KNOWN_NODE_IP KNOWN_NODE_PORT]' % sys.argv[0])
+          'Usage:\n%s UDP_PORT [KNOWN_NODE_IP KNOWN_NODE_PORT]' % sys.argv[0])
       sys.exit(1)
 
   if len(sys.argv) == 4:
@@ -252,6 +263,11 @@ if __name__ == '__main__':
 
   # Create Tinfoil node, join network
   node = Node(udpPort=usePort)
+
+  # Add HTTP "GUI"
+  import tinfront
+  httpPort = (usePort + 10000) % 65535
+  front = tinfront.TinFront(httpPort, node)
+
   node.join(knownNodes)
-  # TODO(cskau): go into interactive mode ?
 
