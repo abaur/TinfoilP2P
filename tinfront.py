@@ -3,6 +3,7 @@
 
 import twisted.web.server
 import twisted.web.resource
+import binascii
 
 class TinFront(twisted.web.resource.Resource):
   isLeaf = True
@@ -16,9 +17,21 @@ class TinFront(twisted.web.resource.Resource):
         twisted.web.server.Site(self))
 
   def _handleRequest(self, request):
-    if request.uri.startswith('/?friendsid='):
-      friendsID = request.uri[12:]
-      self.node.addFriend(friendsID)
+    path = request.uri.split('?')[0]
+    query = (
+        request.uri.split('?')[1] 
+            if len(request.uri.split('?')) == 2
+            else '')
+    if path == '/addfriend':
+      if query.startswith('friendsid='):
+        friendsID = query[10:]
+        self.node.addFriend(friendsID)
+    elif path == '/post':
+      if query.startswith('content='):
+        content = query[8:]
+        self.node.post(content)
+    else:
+      print(request.uri)
 
   def render_GET(self, request):
     self._handleRequest(request)
@@ -26,14 +39,18 @@ class TinFront(twisted.web.resource.Resource):
     request.setHeader("content-type", "text/html")
     return (
       '''<h1>Welcome to TinFoil Net</h1>
+Your ID is: %(id)s
+<form action="/post" method="get">
+  <input type="text" name="content" placeholder="What's on your mind?" />
+</form>
 Digest:
 <ul>
   %(digest)s
 </ul>
-<form action="?addfriend" method="get">
-  Add friend by ID:
-  <input type="text" name="friendsid"></input>
+<form action="/addfriend" method="get">
+  <input type="text" name="friendsid" placeholder="Add friend by ID" />
 </form>''' % {
-        'digest': self.node.getDigest()
+        'digest': self.node.getDigest(),
+        'id': binascii.hexlify(self.node.node.id),
       })
 
