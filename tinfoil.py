@@ -3,7 +3,7 @@
 
 """The Tinfoil social network client."""
 
-from tintangled import EntangledNode
+from tintangled_node import TintangledNode
 import twisted.internet.reactor
 from Crypto.Cipher import AES
 from Crypto.Hash import SHA
@@ -12,7 +12,6 @@ from Crypto import Random
 from Crypto.Random import random
 import Crypto
 import binascii
-from tintangled_protocol import TintangledProtocol
 
 RSA_BITS = 2048
 ID_LENGTH = 20 # in bytes
@@ -54,7 +53,7 @@ class Node:
     # TODO(cskau): this is just example code for now.
     # We need to modify underlying network protocol for the above.
     # DONE?
-    self.node = EntangledNode(udpPort = self.udpPort)
+    self.node = TintangledNode(udpPort = self.udpPort)
     self.node.joinNetwork(knownNodes)
     print(
         'Your ID is: %s   - Tell you friends!' % 
