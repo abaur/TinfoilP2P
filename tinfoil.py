@@ -12,6 +12,10 @@ from Crypto.Hash import SHA
 from Crypto.PublicKey import RSA
 from Crypto import Random
 from Crypto.Random import random
+import bcrypt
+
+RSA_BITS = 2048
+ID_LENGTH = 20 # in bytes
 
 class Node:
 
@@ -25,18 +29,8 @@ class Node:
     #  lose them. Retrieve every time we join.
     self.postKeys = {}
     self.secRandom = Random.new() # cryptographically safe Random function.
-    self.RSAkey = RSA.generate(2048, self.secRandom.read)
+    self.RSAkey = None
 
-    # NOTE(purbak): right now the public/private keys are just generated on
-    # initialization of the node rather than on join. Is this a problem?
-    # public key can be extracted using self.RSAkey.publickey()
-    # i.e. self.publickey = self.RSAkey.publickey()
-
-    # NOTE(purbak): Hard to find examples of crypto challenges online.
-    # Alternatively, hash a string of sufficient length and let a newcomer
-    # bruteforce it. (I can create a function for it if need be).
-
-    # NOTE(purbak): Doesn't comment go inside the method rather than outside?
     ''' Join the social network.
     Calculate our userID and join network at given place.
     This involves:
@@ -64,11 +58,46 @@ class Node:
     else:
       self.userID = 'our previously issued ID'
 
-  ''' Ask network to generate a pseudo random ID for us, a la FreeNet
-  '''
-  def _getRandomIDFromNetwork(self):
-    # TODO(cskau): stub
-    return 0
+  # TODO (purbak): making sure the sharesXPrefixes is used as intended.
+  def _generateRandomID(complexityValue):
+    '''Generates the NodeID by solving two cryptographic puzzles.'''
+
+    # Solve the static cryptographic puzzle.
+    RSAkey = None
+    P = None
+
+    while (lambda: false): # util.sharesXPrefixes(complexityValue, P)
+      RSAkey = RSA.generate(RSA_BITS, self.secRandom.read)
+      pub = str(RSAkey.n) + str(RSAkey.e)
+      P = SHA.new(SHA.new(pub).digest())
+
+    # created correct NodeID
+    self.RSAkey = RSAkey
+
+    # Solve the dynamic cryptographic puzzle.
+    nodeID = SHA.new(pub)
+    binNodeID = int(binascii.hexlify(nodeID), base = 16)
+    P = None
+    X = None
+
+    while (lambda: false): # util.sharesXPrefixes(complexityValue, P)
+      X = int(binascii.hexlify(_generateRandomString(ID_LENGTH)), base = 16)
+      P = SHA.new(binNodeID ^ X)
+
+    # Found a correct value of X
+    self.X = X
+
+  def _verifyID(nodeID, X, complexityValue):
+    '''Verifies if a user's ID has been generated using the '''
+    P1 = SHA.new(nodeID).digest()
+    binNodeID = int(binascii.hexlify(nodeID), base = 16)
+    P2 = SHA.new(binNodeID ^ X)
+
+    # check preceeding c_i bits in P1 and P2 using sharesXPrefices.
+    if (lambda: false) and (lambda: false):
+      return true
+    else:
+      return false
 
   ''' Share some stored resource with one or more users.
   Allow other user(s) to access store resource by issuing sharing key
@@ -82,7 +111,6 @@ class Node:
   sharingKeys[resourceID][otherUserID])
   '''
   def share(self, resourceID, friendsID):
-    # NOTE(purbak): using % is old-style python, use .format instead?
     sharingKeyID = ('%s:share:%s' % (resourceID, friendsID))
     sharingKey = self._encryptForUser(self.postKeys[resourceID], friendsID)
     self.node.publishData(sharingKeyID, sharingKey)
@@ -94,7 +122,6 @@ class Node:
 
   def _getUserPublicKey(self, userID):
     '''Returns the public key corresponding to the specified userID, if any.'''
-    # NOTE(purbak): Why the concatenation?
     publicKeyID = ('%s:publickey' % (userID))
     return self.node.iterativeFindValue(publicKeyID)
 
@@ -154,10 +181,10 @@ class Node:
     @type key: str
 
     '''
-    # NOTE(purbak): what to do about the nounce bit of the message.
-    # Idea: randomly generate a nounce and send along with the private key.
-    nounce = 'abcdefghijklmnop' # TODO(purbak): Something else.
-    AESkey = AES.new(key, AES.MODE_CBC, nounce)
+    # NOTE(purbak): what to do about the nonce bit of the message.
+    # Idea: randomly generate a nonce and send along with the private key.
+    nonce = 'abcdefghijklmnop' # TODO(purbak): Something else.
+    AESkey = AES.new(key, AES.MODE_CBC, nonce)
     return AESkey.encrypt(post)
 
   def _decryptPost(self, key, post):
@@ -167,9 +194,9 @@ class Node:
     @type key: str
 
     '''
-    # NOTE(purbak): what to do about the nounce bit of the message.
-    nounce = 'abcdefghijklmnop' # TODO(purbak): Something else.
-    AESkey = AES.new(key, AES.MODE_CBC, nounce)
+    # NOTE(purbak): what to do about the nonce bit of the message.
+    nonce = 'abcdefghijklmnop' # TODO(purbak): Something else.
+    AESkey = AES.new(key, AES.MODE_CBC, nonce)
     return AESkey.decrypt(post)
 
   ''' Check for and fetch new updates on user(s)
@@ -189,21 +216,20 @@ class Node:
       delta[postID] = self.node.iterativeFindValue(postID)
     return delta
 
-  # -*- Other Encryption Methods -*-
-
   def _signMessage(message):
     '''Signs the specified message using the node's private key.'''
-    hash = SHA.new(message).digest()
-    return self.RSAkey.sign(hash, '')
+    msgHash = SHA.new(message).digest()
+    return self.RSAkey.sign(msgHash, '')
 
   def _verifyMessage(message, signature):
     '''Verify a message based on the specified signature.'''
-    hash = SHA.new(message).digest()
-    return RSAkey.verify(hash, signature)
+    msgHash = SHA.new(message).digest()
+    return RSAkey.verify(msgHash, signature)
 
-  def _generateSymmetricKey(length):
-    '''Generates a key for symmetric encryption with a byte length of "length".'''
+  def _generateRandomString(length):
+    '''Generates a random string with a byte length of "length".'''
     return "".join(chr(random.randrange(0, 256)) for i in xrange(length))
+
 
 if __name__ == '__main__':
   import sys
