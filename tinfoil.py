@@ -9,6 +9,7 @@ from Crypto.Cipher import AES
 from Crypto.Hash import SHA
 from Crypto.PublicKey import RSA
 from Crypto import Random
+from Crypto.Random import random
 from tintangled_protocol import TintangledProtocol
 
 RSA_BITS = 2048
@@ -16,7 +17,6 @@ ID_LENGTH = 20 # in bytes
 
 SYMMETRIC_KEY_LENGTH = 32 # (bytes)
 SYMMETRIC_KEY_NONCE = 0xbeefcafe
-RSA_BITS = 2048
 
 class Node:
 
@@ -88,7 +88,8 @@ class Node:
       X = int(binascii.hexlify(_generateRandomString(ID_LENGTH)), base = 16)
       P = SHA.new(binNodeID ^ X)
 
-    # Found a correct value of X
+    # Found a correct value of X and nodeID
+    self.userID = nodeID
     self.X = X
 
   def _verifyID(nodeID, X, complexityValue):
@@ -212,6 +213,9 @@ class Node:
     AESkey = AES.new(key, AES.MODE_CBC, NONCE)
     return AESkey.decrypt(post)
 
+  def _processUpdatesResult(self, result):
+    print result
+
   def getUpdates(self, friendsID, lastKnownSequenceNumber):
     """ Check for and fetch new updates on user(s)
     Ask for latest known post from a given user and fetch delta since last
@@ -221,12 +225,18 @@ class Node:
       latestPostID = hash(otherUserID + latestSequenceNumber)
       latestPost = get(latestPostID)
     """
-    latestSequenceNumber = self.node.iterativeFindValue(
-        ('%s:latest' % (friendsID)))
     delta = {}
-    for n in range(lastKnownSequenceNumber, latestSequenceNumber):
-      postID = ('%s:post:%s' % (friendsID, n))
-      delta[postID] = self.node.iterativeFindValue(postID)
+    keyID = '%s:latest' % (friendsID)
+    def _processSequenceNumber(result):
+      if type(result) == dict:
+        lastSequenceNumber = result[keyID]
+        for n in range(lastKnownSequenceNumber, lastSequenceNumber):
+          postID = ('%s:post:%s' % (friendsID, n))
+          # ask network for updates
+          self.node.iterativeFindValue(postID).addCallback(self._processUpdatesResult)
+    self.node.iterativeFindValue(keyID).addCallback(_processSequenceNumber)
+    # NOTE(cskau): it's all deferred so we can't do much here
+    # TODO(cskau): maybe just return cache?
     return delta
 
   def _signMessage(message):
@@ -256,9 +266,11 @@ class Node:
     for f in self.friends:
       # update post cache
       lastKnownPost = max(self.postCache[f].keys() + [0])
-      self.postCache[f].update(self.getUpdates(self, f, lastKnownPost))
+      # Do eventual update of cache
+      #  Note: unfortunaly we can't block and wait for updates, so make do
+      self.getUpdates(f, lastKnownPost)
       # get last n from this friend
-      digest.append(sorted(self.postCache.items())[-n:])
+      digest.append(sorted(self.postCache[f].items())[-n:])
     return sorted(digest)[-n:]
 
 if __name__ == '__main__':
@@ -287,6 +299,7 @@ if __name__ == '__main__':
   import tinfront
   httpPort = (usePort + 10000) % 65535
   front = tinfront.TinFront(httpPort, node)
+  print('Front-end running at http://localhost:%i' % httpPort)
 
   node.join(knownNodes)
 
