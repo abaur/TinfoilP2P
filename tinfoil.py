@@ -166,11 +166,9 @@ class Node:
     """
     if not len(key) in [16, 24, 32]:
       raise 'aah ma gaawd!'
-    # NOTE(purbak): what to do about the nounce bit of the message.
-    # Idea: randomly generate a nounce and send along with the private key.
+    # TODO(cskau): As discussed: randomly generate a nounce and send along
+    #  with the private key.
     # nounce = 'abcdefghijklmnop' # TODO(purbak): Something else.
-    # TODO(cskau): Enlighten me; what are the implications of having an 
-    #  networl wide shared nounce?
     AESkey = AES.new(key, AES.MODE_CBC, NOUNCE)
     return AESkey.encrypt(post)
 
@@ -183,9 +181,8 @@ class Node:
     """
     if not len(key) in [16, 24, 32]:
       raise 'aah ma gaawd!'
-    # NOTE(purbak): what to do about the nounce bit of the message.
-    #nounce = 'abcdefghijklmnop' # TODO(purbak): Something else.
     # TODO(cskau): see above
+    #nounce = 'abcdefghijklmnop' # TODO(purbak): Something else.
     AESkey = AES.new(key, AES.MODE_CBC, NOUNCE)
     return AESkey.decrypt(post)
 
