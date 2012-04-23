@@ -25,6 +25,8 @@ class Node:
     # TODO(cskau): we need to ask the network for last known sequence number
     self.sequenceNumber = 0
     self.userID = None
+    self.friends = set()
+    self.postCache = {}
     # TODO(cskau): maybe securely store these in the network so we don't
     #  lose them. Retrieve every time we join.
     self.postKeys = {}
@@ -220,6 +222,24 @@ class Node:
   def _generateSymmetricKey(keyLength):
     """Generates a key for symmetric encryption with a byte length of "length"."""
     return Crypto.Random.get_random_bytes(keyLength)
+
+  ## ---- "Soft" API ----
+
+  def addFriend(self, friendsID):
+    # Add friends known ID to the friends set
+    self.friends.add(friendsID)
+    self.postCache[friendsID] = {}
+
+  def getDigest(self, n = 10):
+    digest = []
+    """Gets latest n updates from friends"""
+    for f in self.friends:
+      # update post cache
+      lastKnownPost = max(self.postCache[f].keys() + [0])
+      self.postCache[f].update(self.getUpdates(self, f, lastKnownPost))
+      # get last n from this friend
+      digest.append(sorted(self.postCache.items())[-n:])
+    return sorted(digest)[-n:]
 
 
 if __name__ == '__main__':
