@@ -80,7 +80,7 @@ class Node:
     self.RSAkey = RSAkey
 
     # Solve the dynamic cryptographic puzzle.
-    self.nodeID = SHA.new(pub)
+    nodeID = SHA.new(pub)
     binNodeID = int(binascii.hexlify(nodeID), base = 16)
     P = None
     X = None
@@ -89,7 +89,8 @@ class Node:
       X = int(binascii.hexlify(_generateRandomString(ID_LENGTH)), base = 16)
       P = SHA.new(binNodeID ^ X)
 
-    # Found a correct value of X
+    # Found a correct value of X and nodeID
+    self.userID = nodeID
     self.X = X
 
   def _verifyID(nodeID, X, complexityValue):
