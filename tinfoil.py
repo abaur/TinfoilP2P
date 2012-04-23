@@ -1,9 +1,7 @@
 #!/usr/bin/env python
 # coding: UTF-8
 
-'''
-  The Tinfoil social network client.
-'''
+"""The Tinfoil social network client."""
 
 from tintangled import EntangledNode
 import twisted.internet.reactor
@@ -13,14 +11,17 @@ from Crypto.PublicKey import RSA
 from Crypto import Random
 from tintangled_protocol import TintangledProtocol
 
+RSA_BITS = 2048
+ID_LENGTH = 20 # in bytes
 
 SYMMETRIC_KEY_LENGTH = 32 # (bytes)
-SYMMETRIC_KEY_NOUNCE = 0xbeefcafe
+SYMMETRIC_KEY_NONCE = 0xbeefcafe
 RSA_BITS = 2048
 
-
 class Node:
-  def __init__(self, udpPort=4000):
+
+  def __init__(self, udpPort = 4000):
+    """Initializes a Tinfoil Node."""
     self.udpPort = udpPort
     # TODO(cskau): we need to ask the network for last known sequence number
     self.sequenceNumber = 0
@@ -31,16 +32,7 @@ class Node:
     #  lose them. Retrieve every time we join.
     self.postKeys = {}
     self.secRandom = Random.new() # cryptographically safe Random function.
-    self.RSAkey = RSA.generate(RSA_BITS, self.secRandom.read)
-
-    # NOTE(purbak): right now the public/private keys are just generated on
-    # initialization of the node rather than on join. Is this a problem?
-    # public key can be extracted using self.RSAkey.publickey()
-    # i.e. self.publickey = self.RSAkey.publickey()
-
-    # NOTE(purbak): Hard to find examples of crypto challenges online.
-    # Alternatively, hash a string of sufficient length and let a newcomer
-    # bruteforce it. (I can create a function for it if need be).
+    self.RSAkey = None
 
   def join(self, knownNodes):
     '''Join the social network.
@@ -70,14 +62,49 @@ class Node:
     else:
       self.userID = 'our previously issued ID'
 
-  ''' Ask network to generate a pseudo random ID for us, a la FreeNet
-  '''
-  def _getRandomIDFromNetwork(self):
-    """Ask network to generate a pseudo random ID for us, a la FreeNet"""
-    # TODO(cskau): stub
-    return 0
+  # TODO (purbak): making sure the sharesXPrefixes is used as intended.
+  def _generateRandomID(complexityValue):
+    '''Generates the NodeID by solving two cryptographic puzzles.'''
 
-  ''' Share some stored resource with one or more users.
+    # Solve the static cryptographic puzzle.
+    RSAkey = None
+    P = None
+
+    while (lambda: false): # util.sharesXPrefixes(complexityValue, P)
+      RSAkey = RSA.generate(RSA_BITS, self.secRandom.read)
+      pub = str(RSAkey.n) + str(RSAkey.e)
+      P = SHA.new(SHA.new(pub).digest())
+
+    # created correct NodeID
+    self.RSAkey = RSAkey
+
+    # Solve the dynamic cryptographic puzzle.
+    nodeID = SHA.new(pub)
+    binNodeID = int(binascii.hexlify(nodeID), base = 16)
+    P = None
+    X = None
+
+    while (lambda: false): # util.sharesXPrefixes(complexityValue, P)
+      X = int(binascii.hexlify(_generateRandomString(ID_LENGTH)), base = 16)
+      P = SHA.new(binNodeID ^ X)
+
+    # Found a correct value of X
+    self.X = X
+
+  def _verifyID(nodeID, X, complexityValue):
+    '''Verifies if a user's ID has been generated using the '''
+    P1 = SHA.new(nodeID).digest()
+    binNodeID = int(binascii.hexlify(nodeID), base = 16)
+    P2 = SHA.new(binNodeID ^ X)
+
+    # check preceeding c_i bits in P1 and P2 using sharesXPrefices.
+    if (lambda: false) and (lambda: false):
+      return true
+    else:
+      return false
+
+  def share(self, resourceID, friendsID):
+    """Share some stored resource with one or more users.
     Allow other user(s) to access store resource by issuing sharing key
     unique to the user-resource pair.
     Code Sketch:
@@ -85,82 +112,89 @@ class Node:
       publicKeys[otherUserID],
       resourceKeys[resourceID])
       store(
-          "SharingKey(resourceID, otherUserID)",
-          sharingKeys[resourceID][otherUserID])
-  '''
-  def share(self, resourceID, friendsID):
+        "SharingKey(resourceID, otherUserID)",
+        sharingKeys[resourceID][otherUserID])
+    """
     sharingKeyID = ('%s:share:%s' % (resourceID, friendsID))
     sharingKey = self._encryptForUser(self.postKeys[resourceID], friendsID)
     self.node.publishData(sharingKeyID, sharingKey)
 
-  ''' Encrypt some content assymetrically with user's public key
-  '''
   def _encryptForUser(self, content, userID):
+    """Encrypt some content asymetrically with user's public key."""
     userKey = self._getUserPublicKey(userID)
     return self._encryptKey(content, userKey)
 
   def _getUserPublicKey(self, userID):
+    """Returns the public key corresponding to the specified userID, if any."""
     publicKeyID = ('%s:publickey' % (userID))
     return self.node.iterativeFindValue(publicKeyID)
 
-  def _encryptKey(self, content, userKey):
-    # TODO(cskau): stub
-    return content
+  def _encryptKey(self, content, publicKey):
+    """Encrypts content (sharing key) using the specified public key."""
+    # TODO(cskau): I'm fairly certain we need to specify key here.
+    # The idea is to encrypt a peer specific sharing key under another peers
+    #  public key, so that only he can read it.
+    return publicKey.encrypt(content, '') # '' -> K not needed when using RSA.
 
-  ''' Unshare previously shared resource with one of more users.
+  def _decryptKey(self, content):
+    """Decrypts content (sharing key) using node's own private key."""
+    return self.RSAkey.decrypt(content)
+
+  def unshare(self, resourceID, friendsID):
+    """ Unshare previously shared resource with one of more users.
     Ask network to delete specific, existing sharing keys.
     Note:
-      This can never be safer than the network allows it.
-      Malicious peer might simply keep the sharing keys despite all.
+    This can never be safer than the network allows it.
+    Malicious peer might simply keep the sharing keys despite all.
     Code Sketch:
       weakDelete(sharingKeys[resourceID][otherUserID])
-  '''
-  def unshare(self, resourceID, friendsID):
+    """
     shareKeyID = ('%s:share:%s' % (resourceID, friendsID))
     self.node.removeDate(shareKeyID)
 
-  ''' Post some resource to the network.
+  def post(self, content):
+    """ Post some resource to the network.
     Ask the network to store some (encrypted) resource.
     Note:
-      This should be encrypted with a symmetric key which will be private
-       until shared through the above share() method.
-    Code Sketch:
-      ...
-  '''
-  def post(self, content):
+    This should be encrypted with a symmetric key which will be private
+    until shared through the above share() method.
+    """
     newSequenceNumber = self._getSequenceNumber()
-    encryptedContent = self._encryptPost(key, content)
+    # NOTE(purbak): Where do you get key used in _encryptPost(key, content)
+    # from? Idea: use the _generateSymmetricKey(length) method further down in
+    # the code.
+    # (cskau): Like this?
+    postKey = _generateSymmetricKey(SYMMETRIC_KEY_LENGTH)
+    encryptedContent = self._encryptPost(postKey, content)
     # We need to store post keys used so we can issue sharing keys later
-    self.postKeys[newSequenceNumber] = key
+    self.postKeys[newSequenceNumber] = postKey
+    # TODO(cskau): whenever we update this, we should store it securely in net
     postID = ('%s:post:%s' % (self.userID, newSequenceNumber))
     self.node.publishData(postID, encryptedContent)
     # update our latest sequence number
     self.node.publishData('%s:latest', newSequenceNumber)
 
-  ''' Return next, unused sequence number unique to this user
-  '''
   def _getSequenceNumber(self):
-    # TODO(cskau): we probasbly need to ask the network to avoid sync errors
-    #  a user might publish from multiple clients at a time
+    """Return next, unused sequence number unique to this user."""
+    # TODO(cskau): we probably need to ask the network to avoid sync errors.
+    #  Case: a user might publish from multiple clients at a time.
     self.sequenceNumber += 1
     return self.sequenceNumber
 
-  ''' Encrypt a post with a symmetric key
-  '''
   def _encryptPost(self, key, post):
-    # TODO(cskau): This is a stub
-    return post
+    """Encrypt a post with a symmetric key.
 
     @param key: must be 16, 24, or 32 bytes long.
     @type key: str
 
     """
+
     if not len(key) in [16, 24, 32]:
       raise 'aah ma gaawd!'
-    # TODO(cskau): As discussed: randomly generate a nounce and send along
+    # TODO(cskau): As discussed: randomly generate a nonce and send along
     #  with the private key.
-    # nounce = 'abcdefghijklmnop' # TODO(purbak): Something else.
-    AESkey = AES.new(key, AES.MODE_CBC, NOUNCE)
+    # nonce = 'abcdefghijklmnop' # TODO(purbak): Something else.
+    AESkey = AES.new(key, AES.MODE_CBC, NONCE)
     return AESkey.encrypt(post)
 
   def _decryptPost(self, key, post):
@@ -170,11 +204,12 @@ class Node:
     @type key: str
 
     """
+
     if not len(key) in [16, 24, 32]:
       raise 'aah ma gaawd!'
     # TODO(cskau): see above
-    #nounce = 'abcdefghijklmnop' # TODO(purbak): Something else.
-    AESkey = AES.new(key, AES.MODE_CBC, NOUNCE)
+    #nonce = 'abcdefghijklmnop' # TODO(purbak): Something else.
+    AESkey = AES.new(key, AES.MODE_CBC, NONCE)
     return AESkey.decrypt(post)
 
   def getUpdates(self, friendsID, lastKnownSequenceNumber):
@@ -185,8 +220,7 @@ class Node:
       latestSequenceNumber = get("latest(otherUserID)")
       latestPostID = hash(otherUserID + latestSequenceNumber)
       latestPost = get(latestPostID)
-  '''
-  def getUpdates(self, friendsID, lastKnownSequenceNumber):
+    """
     latestSequenceNumber = self.node.iterativeFindValue(
         ('%s:latest' % (friendsID)))
     delta = {}
@@ -195,23 +229,19 @@ class Node:
       delta[postID] = self.node.iterativeFindValue(postID)
     return delta
 
-  # -*- Encryption Methods -*-
-
   def _signMessage(message):
-    """Signs the specified message using the node's private key."""
+    '''Signs the specified message using the node's private key.'''
     hashValue = SHA.new(message).digest()
-    # TODO(cskau): fetch private key:
-    signingKey = ''
-    return self.RSAkey.sign(hashValue, signingKey)
+    return self.RSAkey.sign(hashValue, '')
 
   def _verifyMessage(message, signature):
-    """Verify a message based on the specified signature."""
+    '''Verify a message based on the specified signature.'''
     hashValue = SHA.new(message).digest()
     return RSAkey.verify(hashValue, signature)
 
-  def _generateSymmetricKey(keyLength):
-    """Generates a key for symmetric encryption with a byte length of "length"."""
-    return Crypto.Random.get_random_bytes(keyLength)
+  def _generateRandomString(length):
+    '''Generates a random string with a byte length of "length".'''
+    return "".join(chr(random.randrange(0, 256)) for i in xrange(length))
 
   ## ---- "Soft" API ----
 
@@ -230,7 +260,6 @@ class Node:
       # get last n from this friend
       digest.append(sorted(self.postCache.items())[-n:])
     return sorted(digest)[-n:]
-
 
 if __name__ == '__main__':
   import sys
