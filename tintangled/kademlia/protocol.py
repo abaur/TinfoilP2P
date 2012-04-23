@@ -116,7 +116,6 @@ class KademliaProtocol(protocol.DatagramProtocol):
         
         # Refresh the remote node's details in the local node's k-buckets
         self._node.addContact(remoteContact)
-
         if isinstance(message, msgtypes.RequestMessage):
             # This is an RPC method request
             self._handleRPC(remoteContact, message.id, message.request, message.args)
