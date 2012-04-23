@@ -15,8 +15,25 @@ class TinFront(twisted.web.resource.Resource):
         self.port,
         twisted.web.server.Site(self))
 
+  def _handleRequest(self, request):
+    if request.uri.startswith('/?friendsid='):
+      friendsID = request.uri[12:]
+      self.node.addFriend(friendsID)
+
   def render_GET(self, request):
+    self._handleRequest(request)
     self.numberRequests += 1
     request.setHeader("content-type", "text/html")
-    return "I am request #" + str(self.numberRequests) + "\n"
+    return (
+      '''<h1>Welcome to TinFoil Net</h1>
+Digest:
+<ul>
+  %(digest)s
+</ul>
+<form action="?addfriend" method="get">
+  Add friend by ID:
+  <input type="text" name="friendsid"></input>
+</form>''' % {
+        'digest': self.node.getDigest()
+      })
 
