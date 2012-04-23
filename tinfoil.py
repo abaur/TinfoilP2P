@@ -13,39 +13,55 @@ from Crypto.PublicKey import RSA
 from Crypto import Random
 from tintangled_protocol import TintangledProtocol
 
+
+SYMMETRIC_KEY_LENGTH = 32 # (bytes)
+SYMMETRIC_KEY_NOUNCE = 0xbeefcafe
+RSA_BITS = 2048
+
+
 class Node:
   def __init__(self, udpPort=4000):
     self.udpPort = udpPort
     # TODO(cskau): we need to ask the network for last known sequence number
     self.sequenceNumber = 0
     self.userID = None
-    # TODO(cskau): maybe securely store these in the network so we don't 
+    self.friends = set()
+    self.postCache = {}
+    # TODO(cskau): maybe securely store these in the network so we don't
     #  lose them. Retrieve every time we join.
     self.postKeys = {}
-    self.random = Random.new()
-    self.RSAkey = RSA.generate(2048, self.random.read)
+    self.secRandom = Random.new() # cryptographically safe Random function.
+    self.RSAkey = RSA.generate(RSA_BITS, self.secRandom.read)
 
-  ''' Join the social network.
+    # NOTE(purbak): right now the public/private keys are just generated on
+    # initialization of the node rather than on join. Is this a problem?
+    # public key can be extracted using self.RSAkey.publickey()
+    # i.e. self.publickey = self.RSAkey.publickey()
+
+    # NOTE(purbak): Hard to find examples of crypto challenges online.
+    # Alternatively, hash a string of sufficient length and let a newcomer
+    # bruteforce it. (I can create a function for it if need be).
+
+  def join(self, knownNodes):
+    '''Join the social network.
     Calculate our userID and join network at given place.
     This involves:
-     - requesting a random ID from the network.
-     - generate public and private keys for new id.
-     - notifying and requesting involved parties of the selected position.
+    - requesting a random ID from the network.
+    - generate public and private keys for new id.
+    - notifying and requesting involved parties of the selected position.
     OR if the user has already created his ID in the past.
-     - use the previously established private key to authenticate in network.
+    - use the previously established private key to authenticate in network.
     Note:
-      The protocol will include a crypto challenge (say bcrypt? like bitcoin)
-       as a proof of work guard against abuse.
-      The first requested peer will challenge the new-comer.
+    The protocol will include a crypto challenge (say bcrypt? like bitcoin)
+    as a proof of work guard against abuse.
+    The first requested peer will challenge the new-comer.
     Code Sketch:
       userID = getRandomIDFromNetwork(myIP)
-  '''
-  def join(self, knownNodes):
+    '''
     # TODO(cskau): this is just example code for now.
     # We need to modify underlying network protocol for the above.
-    print 'joining now'
-    self.node = EntangledNode(udpPort=self.udpPort)
-    self.node.protocol = TintangledProtocol(self.node)
+    # DONE?
+    self.node = EntangledNode(udpPort = self.udpPort)
     self.node.joinNetwork(knownNodes)
     twisted.internet.reactor.run()
     # TODO(cskau): stub~~
@@ -57,16 +73,17 @@ class Node:
   ''' Ask network to generate a pseudo random ID for us, a la FreeNet
   '''
   def _getRandomIDFromNetwork(self):
+    """Ask network to generate a pseudo random ID for us, a la FreeNet"""
     # TODO(cskau): stub
     return 0
 
   ''' Share some stored resource with one or more users.
     Allow other user(s) to access store resource by issuing sharing key
-     unique to the user-resource pair.
+    unique to the user-resource pair.
     Code Sketch:
       sharingKey[resourceID][otherUserID] = encrypt(
-          publicKeys[otherUserID],
-          resourceKeys[resourceID])
+      publicKeys[otherUserID],
+      resourceKeys[resourceID])
       store(
           "SharingKey(resourceID, otherUserID)",
           sharingKeys[resourceID][otherUserID])
@@ -134,7 +151,34 @@ class Node:
     # TODO(cskau): This is a stub
     return post
 
-  ''' Check for and fetch new updates on user(s)
+    @param key: must be 16, 24, or 32 bytes long.
+    @type key: str
+
+    """
+    if not len(key) in [16, 24, 32]:
+      raise 'aah ma gaawd!'
+    # TODO(cskau): As discussed: randomly generate a nounce and send along
+    #  with the private key.
+    # nounce = 'abcdefghijklmnop' # TODO(purbak): Something else.
+    AESkey = AES.new(key, AES.MODE_CBC, NOUNCE)
+    return AESkey.encrypt(post)
+
+  def _decryptPost(self, key, post):
+    """Decrypt a post with a symmetric key.
+
+    @param key: must be 16, 24, or 32 bytes long.
+    @type key: str
+
+    """
+    if not len(key) in [16, 24, 32]:
+      raise 'aah ma gaawd!'
+    # TODO(cskau): see above
+    #nounce = 'abcdefghijklmnop' # TODO(purbak): Something else.
+    AESkey = AES.new(key, AES.MODE_CBC, NOUNCE)
+    return AESkey.decrypt(post)
+
+  def getUpdates(self, friendsID, lastKnownSequenceNumber):
+    """ Check for and fetch new updates on user(s)
     Ask for latest known post from a given user and fetch delta since last
      fetched update.
     Code Sketch:
@@ -153,41 +197,40 @@ class Node:
 
   # -*- Encryption Methods -*-
 
-  # * Asymmetric(RSA) *
-
   def _signMessage(message):
-    '''Signs the specified message using the node's private key.'''
-    hash = SHA.new(message).digest()
-    return self.RSAkey.sign(hash, random)
+    """Signs the specified message using the node's private key."""
+    hashValue = SHA.new(message).digest()
+    # TODO(cskau): fetch private key:
+    signingKey = ''
+    return self.RSAkey.sign(hashValue, signingKey)
 
   def _verifyMessage(message, signature):
-    '''Verify a message based on the specified signature.'''
-    hash = SHA.new(message).digest()
-    return RSAkey.verify(hash, signature)
+    """Verify a message based on the specified signature."""
+    hashValue = SHA.new(message).digest()
+    return RSAkey.verify(hashValue, signature)
 
-  def _encryptMessageRSA(message):
-    '''Encrypts the specified message using the node's private key.'''
-    return self.RSAkey.encrypt(message, self.random.getrandbits(256))
+  def _generateSymmetricKey(keyLength):
+    """Generates a key for symmetric encryption with a byte length of "length"."""
+    return Crypto.Random.get_random_bytes(keyLength)
 
-  def _decryptMessageRSA(message):
-    '''Decrypts the specified message using the node's private key.'''
-    return self.RSAkey.decrypt(message)
+  ## ---- "Soft" API ----
 
-  # * Symmetric(AES) *
+  def addFriend(self, friendsID):
+    # Add friends known ID to the friends set
+    self.friends.add(friendsID)
+    self.postCache[friendsID] = {}
 
-  def _encryptMessageAES(message, key, nounce):
-    '''Encrypts the specified message using AES.'''
-    AESobj = AES.new(key, AES.MODE_CBC, nounce)
-    return AESobj.encrypt(message)
+  def getDigest(self, n = 10):
+    digest = []
+    """Gets latest n updates from friends"""
+    for f in self.friends:
+      # update post cache
+      lastKnownPost = max(self.postCache[f].keys() + [0])
+      self.postCache[f].update(self.getUpdates(self, f, lastKnownPost))
+      # get last n from this friend
+      digest.append(sorted(self.postCache.items())[-n:])
+    return sorted(digest)[-n:]
 
-  def _encryptMessageAES(message, key, nounce):
-    '''Decrypts the specified message using the given key.'''
-    AESobj = AES.new(key, AES.MODE_CBC, nounce)
-    return AESobj.decrypt(message)
-
-  def _generateSymmetricKey(length):
-    '''Generates a key for symmetric encryption with a byte length of "length".'''
-    return "".join(chr(random.randrange(0, 256)) for i in xrange(length))
 
 if __name__ == '__main__':
   import sys
@@ -210,6 +253,11 @@ if __name__ == '__main__':
 
   # Create Tinfoil node, join network
   node = Node(udpPort=usePort)
+
+  # Add HTTP "GUI"
+  import tinfront
+  httpPort = (usePort + 10000) % 65535
+  front = tinfront.TinFront(httpPort, node)
+
   node.join(knownNodes)
-  # TODO(cskau): go into interactive mode ?
 
