@@ -19,6 +19,7 @@ class TintangledNode(EntangledNode):
     EntangledNode.__init__(
         self, id, udpPort, dataStore, routingTable,
         networkProtocol = TintangledProtocol(self))
+    self.rsaKey = None
 
   def _iterativeFind(self, key, startupShortlist=None, rpc='findNode'):
     """ The basic Kademlia iterative lookup operation (for nodes/values)
@@ -167,6 +168,7 @@ class TintangledNode(EntangledNode):
               cmp(
                   self._routingTable.distance(firstContact.id, targetKey),
                   self._routingTable.distance(secondContact.id, targetKey))))
+      # TODO(cskau): .. my eyes!
       # This makes sure a returning probe doesn't force calling this function by mistake
       while len(pendingIterationCalls):
         del pendingIterationCalls[0]
@@ -237,32 +239,28 @@ class TintangledNode(EntangledNode):
     searchIteration()
     return outerDf
 
-  # TODO(cskau): shouldn't this be in the framework node instead?
-  #  This should be at the framework level of network joining et al.
   # TODO (purbak): making sure the sharesXPrefixes is used as intended.
   def _generateRandomID(self, complexityValue = 2):
     '''Generates the NodeID by solving two cryptographic puzzles.'''
-
     # Solve the static cryptographic puzzle.
     rsaKey = None
-    p = None
+    p = 0x1 # non-zero value
 
     randomStream = Crypto.Random.new().read
-    while (lambda: False): # util.sharesXPrefixes(complexityValue, p)
+    while util.hasNZeroBitPrefix(p, complexityValue):
       rsaKey = Crypto.PublicKey.RSA.generate(RSA_BITS, randomStream)
       pub = str(rsaKey.n) + str(rsaKey.e)
       p = Crypto.Hash.SHA.new(Crypto.Hash.SHA.new(pub).digest())
 
     # created correct NodeID
     self.rsaKey = rsaKey
+    nodeID = Crypto.Cipher.SHA.new(pub)
 
     # Solve the dynamic cryptographic puzzle.
-    nodeID = Crypto.Cipher.SHA.new(pub)
     binNodeID = int(binascii.hexlify(nodeID), base = 16)
-    p = None
-    x = None
+    p, x = 0x1, None
 
-    while (lambda: False): # util.sharesXPrefixes(complexityValue, p)
+    while util.hasNZeroBitPrefix(p, complexityValue):
       x = int(
           binascii.hexlify(self._generateRandomString(ID_LENGTH)),
           base = 16)
@@ -271,7 +269,6 @@ class TintangledNode(EntangledNode):
     # Found a correct value of X and nodeID
     self.x = x
     return nodeID
-    
 
   def _verifyID(nodeID, x, complexityValue):
     '''Verifies if a user's ID has been generated using the '''
@@ -280,8 +277,7 @@ class TintangledNode(EntangledNode):
     p2 = Crypto.Hash.SHA.new(binNodeID ^ x)
 
     # check preceeding c_i bits in P1 and P2 using sharesXPrefices.
-    if (lambda: False) and (lambda: False):
-      return True
-    else:
-      return False
+    return (
+        util.hasNZeroBitPrefix(p1, complexityValue) and
+        util.hasNZeroBitPrefix(p2, complexityValue)):
 
