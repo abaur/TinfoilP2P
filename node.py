@@ -1,17 +1,17 @@
 #!/usr/bin/env python
 
-from tintangled import EntangledNode
+from entangled import EntangledNode
 from protocol import TintangledProtocol
 import hashlib, random, time
 
 from twisted.internet import defer
-from tintangled.kademlia import constants
-from tintangled.kademlia import routingtable
-from tintangled.kademlia import datastore
-import tintangled.kademlia.protocol as protocol
+from entangled.kademlia import constants
+from entangled.kademlia import routingtable
+from entangled.kademlia import datastore
+import entangled.kademlia.protocol as protocol
 import twisted.internet.reactor
 import twisted.internet.threads
-from tintangled.kademlia.contact import Contact
+from entangled.kademlia.contact import Contact
 
 
 class TintangledNode(EntangledNode):

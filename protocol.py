@@ -1,15 +1,15 @@
 #!/usr/bin/env python
 # coding: UTF-8
-from tintangled.kademlia.protocol import KademliaProtocol
+from entangled.kademlia.protocol import KademliaProtocol
 from twisted.internet import protocol, defer
 from twisted.python import failure
 import twisted.internet.reactor
 import util
-from tintangled.kademlia import constants
-from tintangled.kademlia import encoding
-from tintangled.kademlia import msgtypes
-from tintangled.kademlia import msgformat
-from tintangled.kademlia.contact import Contact
+from entangled.kademlia import constants
+from entangled.kademlia import encoding
+from entangled.kademlia import msgtypes
+from entangled.kademlia import msgformat
+from entangled.kademlia.contact import Contact
 import binascii
 
 class TintangledProtocol(KademliaProtocol):
