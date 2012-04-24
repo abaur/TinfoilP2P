@@ -11,6 +11,12 @@ import twisted.internet.reactor
 import twisted.internet.threads
 from entangled.kademlia.contact import Contact
 
+import Crypto.Hash.SHA
+import util
+import binascii
+
+RSA_BITS = 2048
+ID_LENGTH = 20 # in bytes
 
 class TintangledNode(EntangledNode):
   def __init__(
@@ -239,45 +245,54 @@ class TintangledNode(EntangledNode):
     searchIteration()
     return outerDf
 
-  # TODO (purbak): making sure the sharesXPrefixes is used as intended.
-  def _generateRandomID(self, complexityValue = 2):
+  def _generateID(self, complexityValue = 2):
     '''Generates the NodeID by solving two cryptographic puzzles.'''
+    print('Generating a crypto ID...')
     # Solve the static cryptographic puzzle.
     rsaKey = None
     p = 0x1 # non-zero value
+    pub = None
 
     randomStream = Crypto.Random.new().read
-    while util.hasNZeroBitPrefix(p, complexityValue):
+    while not util.hasNZeroBitPrefix(p, complexityValue):
       rsaKey = Crypto.PublicKey.RSA.generate(RSA_BITS, randomStream)
       pub = str(rsaKey.n) + str(rsaKey.e)
-      p = Crypto.Hash.SHA.new(Crypto.Hash.SHA.new(pub).digest())
+      p = int(
+          Crypto.Hash.SHA.new(
+              Crypto.Hash.SHA.new(pub).digest()).hexdigest(),
+          16)
 
     # created correct NodeID
     self.rsaKey = rsaKey
-    nodeID = Crypto.Cipher.SHA.new(pub)
+    nodeID = Crypto.Hash.SHA.new(pub)
 
     # Solve the dynamic cryptographic puzzle.
-    binNodeID = int(binascii.hexlify(nodeID), base = 16)
     p, x = 0x1, None
 
-    while util.hasNZeroBitPrefix(p, complexityValue):
+    while not util.hasNZeroBitPrefix(p, complexityValue):
       x = int(
-          binascii.hexlify(self._generateRandomString(ID_LENGTH)),
+          binascii.hexlify(util.generateRandomString(ID_LENGTH)),
           base = 16)
-      p = Crypto.Cipher.SHA.new(binNodeID ^ x)
+      # This is madness!
+      p = int(
+          Crypto.Hash.SHA.new(
+              binascii.unhexlify(
+                  hex(int(nodeID.hexdigest(), 16) ^ x)[2:-1])).hexdigest(),
+          16)
 
     # Found a correct value of X and nodeID
     self.x = x
-    return nodeID
+    return nodeID.digest()
 
   def _verifyID(nodeID, x, complexityValue):
     '''Verifies if a user's ID has been generated using the '''
-    p1 = Crypto.Hash.SHA.new(nodeID).digest()
-    binNodeID = int(binascii.hexlify(nodeID), base = 16)
-    p2 = Crypto.Hash.SHA.new(binNodeID ^ x)
+    p1 = int(Crypto.Hash.SHA.new(nodeID).hexdigest(), 16)
+    nodeIDInt = int(binascii.hexlify(nodeID), base = 16)
+    p2 = int(Crypto.Hash.SHA.new(
+        binascii.unhexlify(hex(nodeIDInt ^ x)[2:-1])), 16)
 
     # check preceeding c_i bits in P1 and P2 using sharesXPrefices.
     return (
         util.hasNZeroBitPrefix(p1, complexityValue) and
-        util.hasNZeroBitPrefix(p2, complexityValue)):
+        util.hasNZeroBitPrefix(p2, complexityValue))
 

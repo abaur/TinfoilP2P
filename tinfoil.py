@@ -12,8 +12,6 @@ import Crypto,\
     Crypto.Random
 import binascii
 
-RSA_BITS = 2048
-ID_LENGTH = 20 # in bytes
 SYMMETRIC_KEY_LENGTH = 32 # (bytes)
 
 class Client:
@@ -61,13 +59,6 @@ class Client:
         'Your ID is: %s   - Tell your friends!' % 
             binascii.hexlify(self.node.id))
     twisted.internet.reactor.run()
-    # TODO(cskau): stub~~
-    # NOTE(cskau): This should be done in the network layer.
-    #  Do we need to know it at this layer?
-    if "joining for the first time":
-      self.userID = self._generateRandomID()
-    else:
-      self.userID = 'our previously issued ID'
 
   def share(self, resourceID, friendsID):
     """Share some stored resource with one or more users.
@@ -132,7 +123,7 @@ class Client:
     # (cskau): Like this?
 #    postKey = self._generateSymmetricKey(SYMMETRIC_KEY_LENGTH)
     # Who removed the _generateSymmetricKey function?
-    postKey = self._generateRandomString(SYMMETRIC_KEY_LENGTH)
+    postKey = util.generateRandomString(SYMMETRIC_KEY_LENGTH)
     encryptedContent = self._encryptPost(postKey, content)
     # We need to store post keys used so we can issue sharing keys later
     self.postKeys[newSequenceNumber] = postKey
@@ -215,10 +206,6 @@ class Client:
     '''Verify a message based on the specified signature.'''
     hashValue = Crypto.Hash.SHA.new(message).digest()
     return rsaKey.verify(hashValue, signature)
-
-  def _generateRandomString(self, length):
-    '''Generates a random string with a byte length of "length".'''
-    return Crypto.Random.get_random_bytes(length)
 
   ## ---- "Soft" API ----
 

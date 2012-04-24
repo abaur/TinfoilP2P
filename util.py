@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 # coding: UTF-8
 
+import Crypto.Random
+
 # Maybe call it compareNBits
 def sharesXBitPrefix(bitpattern1, bitpattern2, prefixLength):
   # bitmask of all ones in the prefixLength lowest bits
@@ -9,4 +11,8 @@ def sharesXBitPrefix(bitpattern1, bitpattern2, prefixLength):
 
 def hasNZeroBitPrefix(value, n):
   return ((value & ((2 ** n) - 1)) == 0)
+
+def generateRandomString(length):
+  '''Generates a random string with a byte length of "length".'''
+  return Crypto.Random.get_random_bytes(length)
 
