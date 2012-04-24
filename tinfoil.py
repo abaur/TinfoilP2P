@@ -5,26 +5,28 @@
 
 from node import TintangledNode
 import twisted.internet.reactor
-#from Crypto.Cipher import AES
-#from Crypto.Hash import SHA
-#from Crypto.PublicKey import RSA
-#from Crypto import Random
-#from Crypto.Random import random
-import Crypto
+import Crypto,\
+    Crypto.Cipher.AES,\
+    Crypto.Hash.SHA,\
+    Crypto.PublicKey.RSA,\
+    Crypto.Random
 import binascii
 
 RSA_BITS = 2048
 ID_LENGTH = 20 # in bytes
-
 SYMMETRIC_KEY_LENGTH = 32 # (bytes)
 
 class Client:
+  '''A TinFoil Net client
+  Builds the "social" features ontop of the underlying network framework.
+  '''
 
   def __init__(self, udpPort = 4000):
-    """Initializes a Tinfoil Node."""
+    '''Initializes a Tinfoil Node.'''
     self.udpPort = udpPort
     # TODO(cskau): we need to ask the network for last known sequence number
     self.sequenceNumber = 0
+    # The ID is actually a framework things..
     self.userID = None
     self.friends = set()
     self.postCache = {}
@@ -60,58 +62,12 @@ class Client:
             binascii.hexlify(self.node.id))
     twisted.internet.reactor.run()
     # TODO(cskau): stub~~
+    # NOTE(cskau): This should be done in the network layer.
+    #  Do we need to know it at this layer?
     if "joining for the first time":
       self.userID = self._generateRandomID()
     else:
       self.userID = 'our previously issued ID'
-
-  # TODO(cskau): shouldn't this be in the framework node instead?
-  #  This should be at the framework level of network joining et al.
-  # TODO (purbak): making sure the sharesXPrefixes is used as intended.
-  def _generateRandomID(self, complexityValue = 2):
-    '''Generates the NodeID by solving two cryptographic puzzles.'''
-
-    # Solve the static cryptographic puzzle.
-    rsaKey = None
-    p = None
-
-    randomStream = Crypto.Random.new().read
-    while (lambda: False): # util.sharesXPrefixes(complexityValue, p)
-      rsaKey = Crypto.PublicKey.RSA.generate(RSA_BITS, randomStream)
-      pub = str(rsaKey.n) + str(rsaKey.e)
-      p = Crypto.Hash.SHA.new(Crypto.Hash.SHA.new(pub).digest())
-
-    # created correct NodeID
-    self.rsaKey = rsaKey
-
-    # Solve the dynamic cryptographic puzzle.
-    nodeID = Crypto.Cipher.SHA.new(pub)
-    binNodeID = int(binascii.hexlify(nodeID), base = 16)
-    p = None
-    x = None
-
-    while (lambda: False): # util.sharesXPrefixes(complexityValue, p)
-      x = int(
-          binascii.hexlify(self._generateRandomString(ID_LENGTH)),
-          base = 16)
-      p = Crypto.Cipher.SHA.new(binNodeID ^ x)
-
-    # Found a correct value of X and nodeID
-    self.x = x
-    return nodeID
-    
-
-  def _verifyID(nodeID, x, complexityValue):
-    '''Verifies if a user's ID has been generated using the '''
-    p1 = Crypto.Hash.SHA.new(nodeID).digest()
-    binNodeID = int(binascii.hexlify(nodeID), base = 16)
-    p2 = Crypto.Hash.SHA.new(binNodeID ^ x)
-
-    # check preceeding c_i bits in P1 and P2 using sharesXPrefices.
-    if (lambda: False) and (lambda: False):
-      return True
-    else:
-      return False
 
   def share(self, resourceID, friendsID):
     """Share some stored resource with one or more users.

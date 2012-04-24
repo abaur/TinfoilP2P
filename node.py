@@ -6,17 +6,19 @@ import hashlib, random, time
 
 from twisted.internet import defer
 
-from entangled.kademlia import constants
-from entangled.kademlia import routingtable
-from entangled.kademlia import datastore
+from entangled.kademlia import constants, routingtable, datastore
 import twisted.internet.reactor
 import twisted.internet.threads
 from entangled.kademlia.contact import Contact
 
 
 class TintangledNode(EntangledNode):
-  def __init__(self, id=None, udpPort=4000, dataStore=None, routingTable=None, networkProtocol=None):
-    EntangledNode.__init__(self, id, udpPort, dataStore, routingTable, networkProtocol = TintangledProtocol(self))
+  def __init__(
+      self, id=None, udpPort=4000, dataStore=None, routingTable=None,
+      networkProtocol=None):
+    EntangledNode.__init__(
+        self, id, udpPort, dataStore, routingTable,
+        networkProtocol = TintangledProtocol(self))
 
   def _iterativeFind(self, key, startupShortlist=None, rpc='findNode'):
     """ The basic Kademlia iterative lookup operation (for nodes/values)
@@ -66,7 +68,8 @@ class TintangledNode(EntangledNode):
       shortlist = startupShortlist
 
     # List of active queries; len() indicates number of active probes
-    # - using lists for these variables, because Python doesn't allow binding a new value to a name in an enclosing (non-global) scope
+    # - using lists for these variables, because Python doesn't allow
+    #  binding a new value to a name in an enclosing (non-global) scope
     activeProbes = []
     # List of contact IDs that have already been queried
     alreadyContacted = []
@@ -81,7 +84,8 @@ class TintangledNode(EntangledNode):
 
     def extendShortlist(responseTuple):
       """ @type responseMsg: kademlia.msgtypes.ResponseMessage """
-      # The "raw response" tuple contains the response message, and the originating address info
+      # The "raw response" tuple contains the response message, and 
+      #  the originating address info
       responseMsg = responseTuple[0]
       originAddress = responseTuple[1] # tuple: (ip adress, udp port)
       # Make sure the responding node is valid, and abort the operation if it isn't
@@ -95,7 +99,11 @@ class TintangledNode(EntangledNode):
       else:
         # If it's not in the shortlist; we probably used a fake ID to reach it
         # - reconstruct the contact, using the real node ID this time
-        aContact = Contact(responseMsg.nodeID, originAddress[0], originAddress[1], self._protocol)
+        aContact = Contact(
+            responseMsg.nodeID,
+            originAddress[0],
+            originAddress[1],
+            self._protocol)
       activeContacts.append(aContact)
       # This makes sure "bootstrap"-nodes with "fake" IDs don't get queried twice
       if responseMsg.nodeID not in alreadyContacted:
@@ -113,13 +121,19 @@ class TintangledNode(EntangledNode):
           # We are looking for a value, and the remote node didn't have it
           # - mark it as the closest "empty" node, if it is
           if 'closestNodeNoValue' in findValueResult:
-            if self._routingTable.distance(key, responseMsg.nodeID) < self._routingTable.distance(key, activeContacts[0].id):
+            if (
+                self._routingTable.distance(key, responseMsg.nodeID) <
+                self._routingTable.distance(key, activeContacts[0].id)):
               findValueResult['closestNodeNoValue'] = aContact
           else:
             findValueResult['closestNodeNoValue'] = aContact
         for contactTriple in result:
           if isinstance(contactTriple, (list, tuple)) and len(contactTriple) == 3:
-            testContact = Contact(contactTriple[0], contactTriple[1], contactTriple[2], self._protocol)
+            testContact = Contact(
+                contactTriple[0],
+                contactTriple[1],
+                contactTriple[2],
+                self._protocol)
             if testContact not in shortlist:
               shortlist.append(testContact)
       return responseMsg.nodeID
@@ -134,7 +148,8 @@ class TintangledNode(EntangledNode):
 
     def cancelActiveProbe(contactID):
       activeProbes.pop()
-      if len(activeProbes) <= constants.alpha/2 and len(pendingIterationCalls):
+      if ((len(activeProbes) <= (constants.alpha / 2)) and 
+          len(pendingIterationCalls)):
         # Force the iteration
         pendingIterationCalls[0].cancel()
         del pendingIterationCalls[0]
@@ -146,7 +161,12 @@ class TintangledNode(EntangledNode):
       #print '==> searchiteration'
       slowNodeCount[0] = len(activeProbes)
       # Sort the discovered active nodes from closest to furthest
-      activeContacts.sort(lambda firstContact, secondContact, targetKey=key: cmp(self._routingTable.distance(firstContact.id, targetKey), self._routingTable.distance(secondContact.id, targetKey)))
+      # TODO(cskau): ahem..
+      activeContacts.sort(
+          (lambda firstContact, secondContact, targetKey=key:
+              cmp(
+                  self._routingTable.distance(firstContact.id, targetKey),
+                  self._routingTable.distance(secondContact.id, targetKey))))
       # This makes sure a returning probe doesn't force calling this function by mistake
       while len(pendingIterationCalls):
         del pendingIterationCalls[0]
@@ -156,9 +176,14 @@ class TintangledNode(EntangledNode):
         outerDf.callback(findValueResult)
         return
       elif len(activeContacts) and findValue == False:
-        if (len(activeContacts) >= constants.k) or (activeContacts[0] == prevClosestNode[0] and len(activeProbes) == slowNodeCount[0]):
-          # TODO: Re-send the FIND_NODEs to all of the k closest nodes not already queried
-          # Ok, we're done; either we have accumulated k active contacts or no improvement in closestNode has been noted
+        if (
+            (len(activeContacts) >= constants.k) or
+            (activeContacts[0] == prevClosestNode[0] and
+                len(activeProbes) == slowNodeCount[0])):
+          # TODO: Re-send the FIND_NODEs to all of the k closest nodes
+          #  not already queried
+          # Ok, we're done; either we have accumulated k active contacts or 
+          #  no improvement in closestNode has been noted
           #if len(activeContacts) >= constants.k:
           # print '++++++++++++++ DONE (test for k active contacts) +++++++++++++++\n\n'
           #else:
@@ -169,7 +194,10 @@ class TintangledNode(EntangledNode):
       if len(activeContacts):
         prevClosestNode[0] = activeContacts[0]
       contactedNow = 0
-      shortlist.sort(lambda firstContact, secondContact, targetKey=key: cmp(self._routingTable.distance(firstContact.id, targetKey), self._routingTable.distance(secondContact.id, targetKey)))
+      shortlist.sort(
+          (lambda firstContact, secondContact, targetKey=key:
+              cmp(self._routingTable.distance(firstContact.id, targetKey),
+                  self._routingTable.distance(secondContact.id, targetKey))))
       # Store the current shortList length before contacting other nodes
       prevShortlistLength = len(shortlist)
       for contact in shortlist:
@@ -184,11 +212,16 @@ class TintangledNode(EntangledNode):
           contactedNow += 1
         if contactedNow == constants.alpha:
           break
-      if len(activeProbes) > slowNodeCount[0] \
-        or (len(shortlist) < constants.k and len(activeContacts) < len(shortlist) and len(activeProbes) > 0):
+      if (len(activeProbes) > slowNodeCount[0] or
+          (len(shortlist) < constants.k and
+              len(activeContacts) < len(shortlist) and
+              len(activeProbes) > 0)):
         #print '----------- scheduling next call -------------'
-        # Schedule the next iteration if there are any active calls (Kademlia uses loose parallelism)
-        call = twisted.internet.reactor.callLater(constants.iterativeLookupDelay, searchIteration) #IGNORE:E1101
+        # Schedule the next iteration if there are any active calls
+        #  (Kademlia uses loose parallelism)
+        call = twisted.internet.reactor.callLater(
+            constants.iterativeLookupDelay,
+            searchIteration) #IGNORE:E1101
         pendingIterationCalls.append(call)
       # Check for a quick contact response that made an update to the shortList
       elif prevShortlistLength < len(shortlist):
@@ -203,3 +236,52 @@ class TintangledNode(EntangledNode):
     # Start the iterations
     searchIteration()
     return outerDf
+
+  # TODO(cskau): shouldn't this be in the framework node instead?
+  #  This should be at the framework level of network joining et al.
+  # TODO (purbak): making sure the sharesXPrefixes is used as intended.
+  def _generateRandomID(self, complexityValue = 2):
+    '''Generates the NodeID by solving two cryptographic puzzles.'''
+
+    # Solve the static cryptographic puzzle.
+    rsaKey = None
+    p = None
+
+    randomStream = Crypto.Random.new().read
+    while (lambda: False): # util.sharesXPrefixes(complexityValue, p)
+      rsaKey = Crypto.PublicKey.RSA.generate(RSA_BITS, randomStream)
+      pub = str(rsaKey.n) + str(rsaKey.e)
+      p = Crypto.Hash.SHA.new(Crypto.Hash.SHA.new(pub).digest())
+
+    # created correct NodeID
+    self.rsaKey = rsaKey
+
+    # Solve the dynamic cryptographic puzzle.
+    nodeID = Crypto.Cipher.SHA.new(pub)
+    binNodeID = int(binascii.hexlify(nodeID), base = 16)
+    p = None
+    x = None
+
+    while (lambda: False): # util.sharesXPrefixes(complexityValue, p)
+      x = int(
+          binascii.hexlify(self._generateRandomString(ID_LENGTH)),
+          base = 16)
+      p = Crypto.Cipher.SHA.new(binNodeID ^ x)
+
+    # Found a correct value of X and nodeID
+    self.x = x
+    return nodeID
+    
+
+  def _verifyID(nodeID, x, complexityValue):
+    '''Verifies if a user's ID has been generated using the '''
+    p1 = Crypto.Hash.SHA.new(nodeID).digest()
+    binNodeID = int(binascii.hexlify(nodeID), base = 16)
+    p2 = Crypto.Hash.SHA.new(binNodeID ^ x)
+
+    # check preceeding c_i bits in P1 and P2 using sharesXPrefices.
+    if (lambda: False) and (lambda: False):
+      return True
+    else:
+      return False
+
