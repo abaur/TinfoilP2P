@@ -1,7 +1,18 @@
 #!/usr/bin/env python
 # coding: UTF-8
-from tintangled.kademlia.protocol import KademliaProtocol
+import time
 
+from twisted.internet import protocol, defer
+from twisted.python import failure
+import twisted.internet.reactor
+
+from tintangled.kademlia.protocol import KademliaProtocol
+from tintangled.kademlia.contact import Contact
+import tintangled.kademlia.constants
+from tintangled.kademlia.encoding import Encoding
+import tintangled.kademlia.msgtypes as msgtypes
+import tintangled.kademlia.msgformat as msgformat
+import util as util
 
 class TintangledProtocol(KademliaProtocol):
 	""" Handles and parses incoming RPC messages (and responses)
@@ -32,7 +43,7 @@ class TintangledProtocol(KademliaProtocol):
 		except encoding.DecodeError:
 			# We received some rubbish here
 			return
-        
+
 		message = self._translator.fromPrimitive(msgPrimitive)
 		remoteContact = Contact(message.nodeID, address[0], address[1], self)
         
@@ -41,7 +52,7 @@ class TintangledProtocol(KademliaProtocol):
         #Valid sender addresses are only added to a bucket if the nodeId preffix differs in an appropriate amount of bits
 		if isinstance(message, msgtypes.RequestMessage):
 			# This is an RPC method request
-			if sharesXBitPrefix(remoteContact.id, self.id, 33) == False:
+			if util.sharesXBitPrefix(int(remoteContact.id,16), int(self._node.id), 33) == False:
 			    self._node.addContact(remoteContact)
 
 			self._handleRPC(remoteContact, message.id, message.request, message.args)
