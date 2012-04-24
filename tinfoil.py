@@ -61,12 +61,12 @@ class Node:
     twisted.internet.reactor.run()
     # TODO(cskau): stub~~
     if "joining for the first time":
-      self.userID = self._getRandomIDFromNetwork()
+      self.userID = self._generateRandomID()
     else:
       self.userID = 'our previously issued ID'
 
   # TODO (purbak): making sure the sharesXPrefixes is used as intended.
-  def _generateRandomID(self, complexityValue):
+  def _generateRandomID(self, complexityValue = 2):
     '''Generates the NodeID by solving two cryptographic puzzles.'''
 
     # Solve the static cryptographic puzzle.
@@ -92,8 +92,9 @@ class Node:
       P = SHA.new(binNodeID ^ X)
 
     # Found a correct value of X and nodeID
-    self.userID = nodeID
     self.X = X
+    return nodeID
+    
 
   def _verifyID(nodeID, X, complexityValue):
     '''Verifies if a user's ID has been generated using the '''
