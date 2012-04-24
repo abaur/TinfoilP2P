@@ -8,7 +8,5 @@ def sharesXBitPrefix(bitpattern1, bitpattern2, prefixLength):
   return ((bitpattern1 & bitmask) == (bitpattern2 & bitmask))
 
 def hasNZeroBitPrefix(value, n):
-  # pattern of: "1 0^{n}"
-  zeroBits = (2 ** n)
-  return sharesXBitPrefix(value, zeroBits, n)
+  return ((value & ((2 ** n) - 1)) == 0)
 
