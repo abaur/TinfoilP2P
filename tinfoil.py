@@ -65,7 +65,7 @@ class Client:
     # NOTE(cskau): This should be done in the network layer.
     #  Do we need to know it at this layer?
     if "joining for the first time":
-      self.userID = self._generateRandomID()
+      self.userID = self.node.id
     else:
       self.userID = 'our previously issued ID'
 

@@ -1,7 +1,16 @@
 #!/usr/bin/env python
 # coding: UTF-8
-from entangled.kademlia.protocol import KademliaProtocol
-
+from tintangled.kademlia.protocol import KademliaProtocol
+from twisted.internet import protocol, defer
+from twisted.python import failure
+import twisted.internet.reactor
+import util
+from tintangled.kademlia import constants
+from tintangled.kademlia import encoding
+from tintangled.kademlia import msgtypes
+from tintangled.kademlia import msgformat
+from tintangled.kademlia.contact import Contact
+import binascii
 
 class TintangledProtocol(KademliaProtocol):
   """ Handles and parses incoming RPC messages (and responses)
@@ -33,17 +42,16 @@ class TintangledProtocol(KademliaProtocol):
       # We received some rubbish here
       return
 
+
     message = self._translator.fromPrimitive(msgPrimitive)
     remoteContact = Contact(message.nodeID, address[0], address[1], self)
-
     #As written in s/kademlia the message is signed and actively valid, if the sender address is valid and comes from a RPC response 
     #Actively valid sender addresses are immediately added to their corresponding bucket.
     #Valid sender addresses are only added to a bucket if the nodeId preffix differs in an appropriate amount of bits
     if isinstance(message, msgtypes.RequestMessage):
       # This is an RPC method request
-      if sharesXBitPrefix(remoteContact.id, self.id, 33) == False:
+      if util.sharesXBitPrefix(int(binascii.hexlify(remoteContact.id),16), int(binascii.hexlify(self._node.id),16), 33) == False:
         self._node.addContact(remoteContact)
-
       self._handleRPC(remoteContact, message.id, message.request, message.args)
     elif isinstance(message, msgtypes.ResponseMessage):
       # Find the message that triggered this response
