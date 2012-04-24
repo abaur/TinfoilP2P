@@ -56,7 +56,7 @@ class Node:
     self.node = TintangledNode(udpPort = self.udpPort)
     self.node.joinNetwork(knownNodes)
     print(
-        'Your ID is: %s   - Tell you friends!' % 
+        'Your ID is: %s   - Tell your friends!' % 
             binascii.hexlify(self.node.id))
     twisted.internet.reactor.run()
     # TODO(cskau): stub~~
@@ -65,6 +65,8 @@ class Node:
     else:
       self.userID = 'our previously issued ID'
 
+  # TODO(cskau): shouldn't this be in the framework node instead?
+  #  This should be at the framework level of network joining et al.
   # TODO (purbak): making sure the sharesXPrefixes is used as intended.
   def _generateRandomID(self, complexityValue = 2):
     '''Generates the NodeID by solving two cryptographic puzzles.'''

@@ -30,6 +30,9 @@ class TinFront(twisted.web.resource.Resource):
       if query.startswith('content='):
         content = query[8:]
         self.node.post(content)
+    elif path == '/share':
+      postID, friendsID = query.split('&')
+      self.node.share(postID[7:], friendsID[10:])
     else:
       print(request.uri)
 
