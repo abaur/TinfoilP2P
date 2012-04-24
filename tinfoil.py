@@ -3,36 +3,38 @@
 
 """The Tinfoil social network client."""
 
-from tintangled_node import TintangledNode
+from node import TintangledNode
 import twisted.internet.reactor
-from Crypto.Cipher import AES
-from Crypto.Hash import SHA
-from Crypto.PublicKey import RSA
-from Crypto import Random
-from Crypto.Random import random
-import Crypto
+import Crypto,\
+    Crypto.Cipher.AES,\
+    Crypto.Hash.SHA,\
+    Crypto.PublicKey.RSA,\
+    Crypto.Random
 import binascii
 
 RSA_BITS = 2048
 ID_LENGTH = 20 # in bytes
-
 SYMMETRIC_KEY_LENGTH = 32 # (bytes)
 
-class Node:
+class Client:
+  '''A TinFoil Net client
+  Builds the "social" features ontop of the underlying network framework.
+  '''
 
   def __init__(self, udpPort = 4000):
-    """Initializes a Tinfoil Node."""
+    '''Initializes a Tinfoil Node.'''
     self.udpPort = udpPort
     # TODO(cskau): we need to ask the network for last known sequence number
     self.sequenceNumber = 0
+    # The ID is actually a framework things..
     self.userID = None
     self.friends = set()
     self.postCache = {}
     # TODO(cskau): maybe securely store these in the network so we don't
     #  lose them. Retrieve every time we join.
     self.postKeys = {}
-    self.secRandom = Random.new() # cryptographically safe Random function.
-    self.RSAkey = None
+    # cryptographically safe Random function.
+    self.rsaKey = None
 
   def join(self, knownNodes):
     '''Join the social network.
@@ -60,55 +62,12 @@ class Node:
             binascii.hexlify(self.node.id))
     twisted.internet.reactor.run()
     # TODO(cskau): stub~~
+    # NOTE(cskau): This should be done in the network layer.
+    #  Do we need to know it at this layer?
     if "joining for the first time":
       self.userID = self._generateRandomID()
     else:
       self.userID = 'our previously issued ID'
-
-  # TODO(cskau): shouldn't this be in the framework node instead?
-  #  This should be at the framework level of network joining et al.
-  # TODO (purbak): making sure the sharesXPrefixes is used as intended.
-  def _generateRandomID(self, complexityValue = 2):
-    '''Generates the NodeID by solving two cryptographic puzzles.'''
-
-    # Solve the static cryptographic puzzle.
-    RSAkey = None
-    P = None
-
-    while (lambda: false): # util.sharesXPrefixes(complexityValue, P)
-      RSAkey = RSA.generate(RSA_BITS, self.secRandom.read)
-      pub = str(RSAkey.n) + str(RSAkey.e)
-      P = SHA.new(SHA.new(pub).digest())
-
-    # created correct NodeID
-    self.RSAkey = RSAkey
-
-    # Solve the dynamic cryptographic puzzle.
-    nodeID = SHA.new(pub)
-    binNodeID = int(binascii.hexlify(nodeID), base = 16)
-    P = None
-    X = None
-
-    while (lambda: false): # util.sharesXPrefixes(complexityValue, P)
-      X = int(binascii.hexlify(_generateRandomString(ID_LENGTH)), base = 16)
-      P = SHA.new(binNodeID ^ X)
-
-    # Found a correct value of X and nodeID
-    self.X = X
-    return nodeID
-    
-
-  def _verifyID(nodeID, X, complexityValue):
-    '''Verifies if a user's ID has been generated using the '''
-    P1 = SHA.new(nodeID).digest()
-    binNodeID = int(binascii.hexlify(nodeID), base = 16)
-    P2 = SHA.new(binNodeID ^ X)
-
-    # check preceeding c_i bits in P1 and P2 using sharesXPrefices.
-    if (lambda: false) and (lambda: false):
-      return true
-    else:
-      return false
 
   def share(self, resourceID, friendsID):
     """Share some stored resource with one or more users.
@@ -202,9 +161,9 @@ class Node:
     # TODO(cskau): As discussed: randomly generate a nonce and send along
     #  with the private key.
     nonce = 'abcdefghijklmnop' # TODO(purbak): Something else.
-    AESkey = AES.new(key, AES.MODE_CBC, nonce)
+    aesKey = Crypto.Cipher.AES.new(key, Crypto.Cipher.AES.MODE_CBC, nonce)
     # NOTE(cskau): *input* has to be a 16-multiple, pad with whitespace
-    return AESkey.encrypt(post + (' ' * (16 - (len(post) % 16))))
+    return aesKey.encrypt(post + (' ' * (16 - (len(post) % 16))))
 
   def _decryptPost(self, key, post):
     """Decrypt a post with a symmetric key.
@@ -217,8 +176,8 @@ class Node:
       raise 'aah ma gaawd!'
     # TODO(cskau): see above
     nonce = 'abcdefghijklmnop' # TODO(purbak): Something else.
-    AESkey = AES.new(key, AES.MODE_CBC, nonce)
-    return AESkey.decrypt(post)
+    aesKey = Crypto.Cipher.AES.new(key, Crypto.Cipher.AES.MODE_CBC, nonce)
+    return aesKey.decrypt(post)
 
   def _processUpdatesResult(self, result):
     print result
@@ -249,13 +208,13 @@ class Node:
 
   def _signMessage(self, message):
     '''Signs the specified message using the node's private key.'''
-    hashValue = SHA.new(message).digest()
-    return self.RSAkey.sign(hashValue, '')
+    hashValue = Crypto.Hash.SHA.new(message).digest()
+    return self.rsaKey.sign(hashValue, '')
 
   def _verifyMessage(self, message, signature):
     '''Verify a message based on the specified signature.'''
-    hashValue = SHA.new(message).digest()
-    return RSAkey.verify(hashValue, signature)
+    hashValue = Crypto.Hash.SHA.new(message).digest()
+    return rsaKey.verify(hashValue, signature)
 
   def _generateRandomString(self, length):
     '''Generates a random string with a byte length of "length".'''
@@ -301,13 +260,13 @@ if __name__ == '__main__':
     knownNodes = None
 
   # Create Tinfoil node, join network
-  node = Node(udpPort=usePort)
+  client = Client(udpPort=usePort)
 
   # Add HTTP "GUI"
   import tinfront
   httpPort = (usePort + 10000) % 65535
-  front = tinfront.TinFront(httpPort, node)
+  front = tinfront.TinFront(httpPort, client)
   print('Front-end running at http://localhost:%i' % httpPort)
 
-  node.join(knownNodes)
+  client.join(knownNodes)
 
