@@ -23,6 +23,10 @@ class TintangledNode(EntangledNode):
   def __init__(
       self, id=None, udpPort=4000, dataStore=None, routingTable=None,
       networkProtocol=None):
+    
+    if id == None:
+      id = self._generateRandomID()
+
     EntangledNode.__init__(
         self, id, udpPort, dataStore, routingTable,
         networkProtocol = TintangledProtocol(self))
@@ -194,7 +198,7 @@ class TintangledNode(EntangledNode):
     startIteration()
     return outerDf
 
-  def _generateID(self, complexityValue = 2):
+  def _generateRandomID(self, complexityValue = 2):
     '''Generates the NodeID by solving two cryptographic puzzles.'''
     print('Generating a crypto ID...')
     # Solve the static cryptographic puzzle.
