@@ -75,7 +75,8 @@ class TintangledNode(EntangledNode):
       # This is used during the bootstrap process; node ID's are most probably fake
       shortlist = startupShortlist
     # List of active queries; len() indicates number of active probes
-    # - using lists for these variables, because Python doesn't allow binding a new value to a name in an enclosing (non-global) scope
+    # - using lists for these variables, because Python doesn't allow binding
+    #  a new value to a name in an enclosing (non-global) scope
     activeProbes = []
     # List of contact IDs that have already been queried
     alreadyContacted = []
@@ -118,7 +119,9 @@ class TintangledNode(EntangledNode):
           # We are looking for a value, and the remote node didn't have it
           # - mark it as the closest "empty" node, if it is
           if 'closestNodeNoValue' in findValueResult:
-            if self._routingTable.distance(key, responseMsg.nodeID) < self._routingTable.distance(key, activeContacts[0].id):
+            if (
+                self._routingTable.distance(key, responseMsg.nodeID) <
+                self._routingTable.distance(key, activeContacts[0].id)):
               findValueResult['closestNodeNoValue'] = aContact
           else:
             findValueResult['closestNodeNoValue'] = aContact
@@ -131,7 +134,9 @@ class TintangledNode(EntangledNode):
               contactsGateheredFromNode.append(testContact)
         if len(contactsGateheredFromNode):
           contactsGateheredFromNode.sort(lambda firstContact, secondContact, targetKey=key: 
-            cmp(self._routingTable.distance(firstContact.id, targetKey), self._routingTable.distance(secondContact.id, targetKey)))
+              cmp(
+                  self._routingTable.distance(firstContact.id, targetKey),
+                  self._routingTable.distance(secondContact.id, targetKey)))
           contactNode(contactsGateheredFromNode.pop(), contactsGateheredFromNode)
       return responseMsg.nodeID
 
@@ -173,9 +178,11 @@ class TintangledNode(EntangledNode):
     def startIteration():
       contactedNow = 0
       shortlist.sort(lambda firstContact, secondContact, targetKey=key: 
-        cmp(self._routingTable.distance(firstContact.id, targetKey), self._routingTable.distance(secondContact.id, targetKey)))
+          cmp(
+              self._routingTable.distance(firstContact.id, targetKey),
+              self._routingTable.distance(secondContact.id, targetKey)))
       # Store the current shortList length before contacting other nodes
-      while contactedNow < constants.alpha and len(shortlist):
+      while (contactedNow < constants.alpha) and len(shortlist):
         contact = shortlist.pop()
         contactNode(contact, shortlist)
         contactedNow += 1
@@ -199,10 +206,7 @@ class TintangledNode(EntangledNode):
     while not util.hasNZeroBitPrefix(p, complexityValue):
       rsaKey = Crypto.PublicKey.RSA.generate(RSA_BITS, randomStream)
       pub = str(rsaKey.n) + str(rsaKey.e)
-      p = int(
-          Crypto.Hash.SHA.new(
-              Crypto.Hash.SHA.new(pub).digest()).hexdigest(),
-          16)
+      p = util.hsh2int(Crypto.Hash.SHA.new(Crypto.Hash.SHA.new(pub).digest()))
 
     # created correct NodeID
     self.rsaKey = rsaKey
@@ -212,15 +216,12 @@ class TintangledNode(EntangledNode):
     p, x = 0x1, None
 
     while not util.hasNZeroBitPrefix(p, complexityValue):
-      x = int(
-          binascii.hexlify(util.generateRandomString(ID_LENGTH)),
-          base = 16)
+      x = util.bin2int(util.generateRandomString(ID_LENGTH))
       # This is madness!
-      p = int(
+      p = util.hsh2int(
           Crypto.Hash.SHA.new(
-              binascii.unhexlify(
-                  hex(int(nodeID.hexdigest(), 16) ^ x)[2:-1])).hexdigest(),
-          16)
+              util.int2bin(
+                  (util.hsh2int(nodeID) ^ x))))
 
     # Found a correct value of X and nodeID
     self.x = x
@@ -228,10 +229,9 @@ class TintangledNode(EntangledNode):
 
   def _verifyID(nodeID, x, complexityValue):
     '''Verifies if a user's ID has been generated using the '''
-    p1 = int(Crypto.Hash.SHA.new(nodeID).hexdigest(), 16)
-    nodeIDInt = int(binascii.hexlify(nodeID), base = 16)
-    p2 = int(Crypto.Hash.SHA.new(
-        binascii.unhexlify(hex(nodeIDInt ^ x)[2:-1])), 16)
+    p1 = util.hsh2int(Crypto.Hash.SHA.new(nodeID))
+    p2 = util.hsh2int(Crypto.Hash.SHA.new(
+        util.int2bin((util.bin2int(nodeID) ^ x)))
 
     # check preceeding c_i bits in P1 and P2 using sharesXPrefices.
     return (
