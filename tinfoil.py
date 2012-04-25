@@ -10,7 +10,7 @@ import Crypto,\
     Crypto.Hash.SHA,\
     Crypto.PublicKey.RSA,\
     Crypto.Random
-import binascii
+import binascii, util
 
 SYMMETRIC_KEY_LENGTH = 32 # (bytes)
 
