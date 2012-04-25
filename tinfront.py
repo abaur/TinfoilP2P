@@ -4,6 +4,7 @@
 import twisted.web.server
 import twisted.web.resource
 import binascii
+import util
 
 class TinFront(twisted.web.resource.Resource):
   isLeaf = True
@@ -19,12 +20,12 @@ class TinFront(twisted.web.resource.Resource):
   def _handleRequest(self, request):
     path = request.uri.split('?')[0]
     query = (
-        request.uri.split('?')[1] 
+        request.uri.split('?')[1]
             if len(request.uri.split('?')) == 2
             else '')
     if path == '/addfriend':
       if query.startswith('friendsid='):
-        friendsID = query[10:]
+        friendsID = util.hex2bin(query[10:])
         self.node.addFriend(friendsID)
     elif path == '/post':
       if query.startswith('content='):

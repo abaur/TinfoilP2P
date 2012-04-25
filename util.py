@@ -31,6 +31,9 @@ def hex2int(value):
 def int2hex(value):
   return hex(value)[2:-1].rjust(40, '0')
 
+def hex2bin(value):
+  return binascii.unhexlify(value.rjust(40, '0'))
+
 def hsh2int(value):
   return int(value.hexdigest(), base = 16)
 

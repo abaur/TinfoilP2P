@@ -24,15 +24,11 @@ class Client:
     self.udpPort = udpPort
     # TODO(cskau): we need to ask the network for last known sequence number
     self.sequenceNumber = 0
-    # The ID is actually a framework things..
-    self.userID = None
     self.friends = set()
     self.postCache = {}
     # TODO(cskau): maybe securely store these in the network so we don't
     #  lose them. Retrieve every time we join.
     self.postKeys = {}
-    # cryptographically safe Random function.
-    self.rsaKey = None
 
   def join(self, knownNodes):
     '''Join the social network.
@@ -50,9 +46,6 @@ class Client:
     Code Sketch:
       userID = getRandomIDFromNetwork(myIP)
     '''
-    # TODO(cskau): this is just example code for now.
-    # We need to modify underlying network protocol for the above.
-    # DONE?
     self.node = TintangledNode(udpPort = self.udpPort)
     self.node.joinNetwork(knownNodes)
     print(
@@ -88,9 +81,6 @@ class Client:
 
   def _encryptKey(self, content, publicKey):
     """Encrypts content (sharing key) using the specified public key."""
-    # TODO(cskau): I'm fairly certain we need to specify key here.
-    # The idea is to encrypt a peer specific sharing key under another peers
-    #  public key, so that only he can read it.
     return publicKey.encrypt(content, '') # '' -> K not needed when using RSA.
 
   def _decryptKey(self, content):
@@ -117,17 +107,11 @@ class Client:
     until shared through the above share() method.
     """
     newSequenceNumber = self._getSequenceNumber()
-    # NOTE(purbak): Where do you get key used in _encryptPost(key, content)
-    # from? Idea: use the _generateSymmetricKey(length) method further down in
-    # the code.
-    # (cskau): Like this?
-#    postKey = self._generateSymmetricKey(SYMMETRIC_KEY_LENGTH)
-    # Who removed the _generateSymmetricKey function?
     postKey = util.generateRandomString(SYMMETRIC_KEY_LENGTH)
     encryptedContent = self._encryptPost(postKey, content)
     # We need to store post keys used so we can issue sharing keys later
-    self.postKeys[newSequenceNumber] = postKey
     # TODO(cskau): whenever we update this, we should store it securely in net
+    self.postKeys[newSequenceNumber] = postKey
     postID = ('%s:post:%s' % (self.userID, newSequenceNumber))
     self.node.publishData(postID, encryptedContent)
     # update our latest sequence number
@@ -171,6 +155,7 @@ class Client:
     return aesKey.decrypt(post)
 
   def _processUpdatesResult(self, result):
+    # TODO(cskau): ???
     print result
 
   def getUpdates(self, friendsID, lastKnownSequenceNumber):
@@ -215,8 +200,8 @@ class Client:
     self.postCache[friendsID] = {}
 
   def getDigest(self, n = 10):
-    digest = []
     """Gets latest n updates from friends"""
+    digest = []
     for f in self.friends:
       # update post cache
       lastKnownPost = max(self.postCache[f].keys() + [0])
@@ -226,6 +211,7 @@ class Client:
       # get last n from this friend
       digest.append(sorted(self.postCache[f].items())[-n:])
     return sorted(digest)[-n:]
+
 
 if __name__ == '__main__':
   import sys
@@ -251,7 +237,7 @@ if __name__ == '__main__':
 
   # Add HTTP "GUI"
   import tinfront
-  httpPort = (usePort + 10000) % 65535
+  httpPort = (usePort + 20000) % 65535
   front = tinfront.TinFront(httpPort, client)
   print('Front-end running at http://localhost:%i' % httpPort)
 
