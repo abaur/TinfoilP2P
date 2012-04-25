@@ -261,7 +261,6 @@ class Node(object):
         @param contact: The contact to add to this node's k-buckets
         @type contact: kademlia.contact.Contact
         """
-        print "Adding contact: %s" % contact
         self._routingTable.addContact(contact)
 
     def removeContact(self, contactID):
