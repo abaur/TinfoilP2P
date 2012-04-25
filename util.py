@@ -23,13 +23,13 @@ def bin2int(value):
   return int(binascii.hexlify(value), base = 16)
 
 def int2bin(value):
-  return binascii.unhexlify(hex(value))
+  return binascii.unhexlify(hex(value)[2:-1].rjust(40, '0'))
 
 def hex2int(value):
   return int(value, base = 16)
 
 def int2hex(value):
-  return hex(value)[2:-1]
+  return hex(value)[2:-1].rjust(40, '0')
 
 def hsh2int(value):
   return int(value.hexdigest(), base = 16)

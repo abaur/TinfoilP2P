@@ -235,7 +235,7 @@ class TintangledNode(EntangledNode):
     '''Verifies if a user's ID has been generated using the '''
     p1 = util.hsh2int(Crypto.Hash.SHA.new(nodeID))
     p2 = util.hsh2int(Crypto.Hash.SHA.new(
-        util.int2bin((util.bin2int(nodeID) ^ x)))
+        util.int2bin((util.bin2int(nodeID) ^ x))))
 
     # check preceeding c_i bits in P1 and P2 using sharesXPrefices.
     return (
