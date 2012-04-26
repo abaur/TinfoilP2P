@@ -61,7 +61,6 @@ class TintangledNode(entangled.EntangledNode):
         # TODO(cskau): This protocol seems buggy.
         # It doesn't seem to store in the network - only locally at the orig node
         networkProtocol = protocol.TintangledProtocol(self))
-    self.rsaKey = None
 
   def _iterativeFind(self, key, startupShortlist=None, rpc='findNode'):
     """ The basic Kademlia iterative lookup operation (for nodes/values)

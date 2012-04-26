@@ -13,6 +13,8 @@ import msgtypes
 import msgformat
 from entangled.kademlia.contact import Contact
 
+reactor = twisted.internet.reactor
+
 
 class TintangledProtocol(KademliaProtocol):
   def __init__(self, node, msgEncoder=encoding.Bencode(), msgTranslator=msgformat.DefaultFormat()):

@@ -4,13 +4,10 @@
 
 import Crypto.Random
 
-<<<<<<< HEAD
 CRYPTO_CHALLENGE_C1 = 2
 CRYPTO_CHALLENGE_C2 = 4
 
 # Maybe call it compareNBits
-def sharesXBitPrefix(bitpattern1, bitpattern2, prefixLength):
-=======
 
 def sharesXBitPrefix(value1, value2, prefixLength):
   """Compares the X first bits in the two specified values."""
@@ -20,7 +17,6 @@ def sharesXBitPrefix(value1, value2, prefixLength):
     _value1 = bin2int(_value1)
   if type(_value2) == str:
     _value2 = bin2int(_value2)
->>>>>>> master
   # bitmask of all ones in the prefixLength lowest bits
   bitmask = ((2 ** prefixLength) - 1)
   return ((_value1 & bitmask) == (_value2 & bitmask))
