@@ -4,6 +4,9 @@
 import Crypto.Random
 import binascii
 
+CRYPTO_CHALLENGE_C1 = 2
+CRYPTO_CHALLENGE_C2 = 4
+
 # Maybe call it compareNBits
 def sharesXBitPrefix(bitpattern1, bitpattern2, prefixLength):
   # bitmask of all ones in the prefixLength lowest bits

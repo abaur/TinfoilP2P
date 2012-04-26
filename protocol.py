@@ -4,21 +4,94 @@ from entangled.kademlia.protocol import KademliaProtocol
 from twisted.internet import protocol, defer
 from twisted.python import failure
 import twisted.internet.reactor
-import util
+import util, time
 from entangled.kademlia import constants
 from entangled.kademlia import encoding
-from entangled.kademlia import msgtypes
-from entangled.kademlia import msgformat
+import msgtypes
+import msgformat
 from entangled.kademlia.contact import Contact
 import binascii
+import Crypto.Hash.SHA
+
+reactor = twisted.internet.reactor
 
 class TintangledProtocol(KademliaProtocol):
-  """ Handles and parses incoming RPC messages (and responses)
+  def __init__(self, node, msgEncoder=encoding.Bencode(), msgTranslator=msgformat.DefaultFormat()):
+        KademliaProtocol.__init__(self,node, msgEncoder, msgTranslator)
 
-  @note: This is automatically called by Twisted when the protocol
-   receives a UDP datagram
-  """
+  def _verifyID(self, nodeID, x):
+    '''Verifies if a user's ID has been generated using the '''
+    p1 = util.hsh2int(Crypto.Hash.SHA.new(nodeID))
+    p2 = util.hsh2int(Crypto.Hash.SHA.new(
+        util.int2bin((util.bin2int(nodeID) ^ x))))
+    # check preceeding c_i bits in P1 and P2 using sharesXPrefices.
+    return (
+        util.hasNZeroBitPrefix(p1, util.CRYPTO_CHALLENGE_C1) and
+        util.hasNZeroBitPrefix(p2, util.CRYPTO_CHALLENGE_C2))
+   
+  def _sendResponse(self, contact, rpcID, response):
+    """ Send a RPC response to the specified contact"""
+    msg = msgtypes.ResponseMessage(rpcID, self._node.id,self._node.rsaKey.n, self._node.x, response)
+    msgPrimitive = self._translator.toPrimitive(msg)
+    encodedMsg = self._encoder.encode(msgPrimitive)
+    self._send(encodedMsg, rpcID, (contact.address, contact.port))
+
+    def _sendError(self, contact, rpcID, exceptionType, exceptionMessage):
+      """ Send an RPC error message to the specified contact"""
+      msg = msgtypes.ErrorMessage(rpcID, self._node.id,self._node.rsaKey.n, self._node.x, exceptionType, exceptionMessage)
+      msgPrimitive = self._translator.toPrimitive(msg)
+      encodedMsg = self._encoder.encode(msgPrimitive)
+      self._send(encodedMsg, rpcID, (contact.address, contact.port))
+  
+  def sendRPC(self, contact, method, args, rawResponse=False):
+    """ Sends an RPC to the specified contact
+
+    @param contact: The contact (remote node) to send the RPC to
+    @type contact: kademlia.contacts.Contact
+    @param method: The name of remote method to invoke
+    @type method: str
+    @param args: A list of (non-keyword) arguments to pass to the remote 
+      method, in the correct order
+    @type args: tuple
+    @param rawResponse: If this is set to C{True}, the caller of this RPC
+                            will receive a tuple containing the actual response
+                            message object and the originating address tuple as
+                            a result; in other words, it will not be
+                            interpreted by this class. Unless something special
+                            needs to be done with the metadata associated with
+                            the message, this should remain C{False}.
+    @type rawResponse: bool
+
+    @return: This immediately returns a deferred object, which will return
+                 the result of the RPC call, or raise the relevant exception
+                 if the remote node raised one. If C{rawResponse} is set to
+                 C{True}, however, it will always return the actual response
+                 message (which may be a C{ResponseMessage} or an
+                 C{ErrorMessage}).
+    @rtype: twisted.internet.defer.Deferred
+        """
+    msg = msgtypes.RequestMessage(self._node.id, self._node.rsaKey.n, self._node.x, method, args)
+
+    msgPrimitive = self._translator.toPrimitive(msg)
+    encodedMsg = self._encoder.encode(msgPrimitive)
+
+    df = defer.Deferred()
+    if rawResponse:
+      df._rpcRawResponse = True
+
+    # Set the RPC timeout timer
+    timeoutCall = reactor.callLater(constants.rpcTimeout, self._msgTimeout, msg.id) #IGNORE:E1101
+    # Transmit the data
+    self._send(encodedMsg, msg.id, (contact.address, contact.port))
+    self._sentMessages[msg.id] = (contact.id, df, timeoutCall)
+    return df
+
   def datagramReceived(self, datagram, address):
+    """ Handles and parses incoming RPC messages (and responses)
+
+    @note: This is automatically called by Twisted when the protocol
+     receives a UDP datagram
+    """
     if datagram[0] == '\x00' and datagram[25] == '\x00':
       totalPackets = (ord(datagram[1]) << 8) | ord(datagram[2])
       msgID = datagram[5:25]
@@ -45,12 +118,16 @@ class TintangledProtocol(KademliaProtocol):
 
     message = self._translator.fromPrimitive(msgPrimitive)
     remoteContact = Contact(message.nodeID, address[0], address[1], self)
+    remoteId = util.bin2int(remoteContact.id)
+    if not self._verifyID(remoteContact.id, message.crypto_challenge_x):
+      print 'Verification failed'
+      return
     #As written in s/kademlia the message is signed and actively valid, if the sender address is valid and comes from a RPC response 
     #Actively valid sender addresses are immediately added to their corresponding bucket.
     #Valid sender addresses are only added to a bucket if the nodeId preffix differs in an appropriate amount of bits
     if isinstance(message, msgtypes.RequestMessage):
       # This is an RPC method request
-      if util.sharesXBitPrefix(int(binascii.hexlify(remoteContact.id),16), int(binascii.hexlify(self._node.id),16), 33) == False:
+      if util.sharesXBitPrefix(remoteId, util.bin2int(self._node.id), 33) == False:
         self._node.addContact(remoteContact)
       self._handleRPC(remoteContact, message.id, message.request, message.args)
     elif isinstance(message, msgtypes.ResponseMessage):

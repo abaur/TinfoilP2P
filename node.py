@@ -2,7 +2,7 @@
 
 from entangled import EntangledNode
 from protocol import TintangledProtocol
-import hashlib, random, time
+import hashlib, random, time, constants
 
 from twisted.internet import defer
 
@@ -24,13 +24,14 @@ class TintangledNode(EntangledNode):
       self, id=None, udpPort=4000, dataStore=None, routingTable=None,
       networkProtocol=None):
     
+    self.rsaKey = None
+    
     if id == None:
       id = self._generateRandomID()
 
     EntangledNode.__init__(
         self, id, udpPort, dataStore, routingTable,
         networkProtocol = TintangledProtocol(self))
-    self.rsaKey = None
 
   def _iterativeFind(self, key, startupShortlist=None, rpc='findNode'):
     """ The basic Kademlia iterative lookup operation (for nodes/values)
@@ -198,7 +199,7 @@ class TintangledNode(EntangledNode):
     startIteration()
     return outerDf
 
-  def _generateRandomID(self, complexityValue = 2):
+  def _generateRandomID(self):
     '''Generates the NodeID by solving two cryptographic puzzles.'''
     print('Generating a crypto ID...')
     # Solve the static cryptographic puzzle.
@@ -207,7 +208,7 @@ class TintangledNode(EntangledNode):
     pub = None
 
     randomStream = Crypto.Random.new().read
-    while not util.hasNZeroBitPrefix(p, complexityValue):
+    while not util.hasNZeroBitPrefix(p, util.CRYPTO_CHALLENGE_C1):
       rsaKey = Crypto.PublicKey.RSA.generate(RSA_BITS, randomStream)
       pub = str(rsaKey.n) + str(rsaKey.e)
       p = util.hsh2int(Crypto.Hash.SHA.new(Crypto.Hash.SHA.new(pub).digest()))
@@ -219,7 +220,7 @@ class TintangledNode(EntangledNode):
     # Solve the dynamic cryptographic puzzle.
     p, x = 0x1, None
 
-    while not util.hasNZeroBitPrefix(p, complexityValue):
+    while not util.hasNZeroBitPrefix(p, util.CRYPTO_CHALLENGE_C2):
       x = util.bin2int(util.generateRandomString(ID_LENGTH))
       # This is madness!
       p = util.hsh2int(
@@ -230,14 +231,3 @@ class TintangledNode(EntangledNode):
     # Found a correct value of X and nodeID
     self.x = x
     return nodeID.digest()
-
-  def _verifyID(nodeID, x, complexityValue):
-    '''Verifies if a user's ID has been generated using the '''
-    p1 = util.hsh2int(Crypto.Hash.SHA.new(nodeID))
-    p2 = util.hsh2int(Crypto.Hash.SHA.new(
-        util.int2bin((util.bin2int(nodeID) ^ x))))
-
-    # check preceeding c_i bits in P1 and P2 using sharesXPrefices.
-    return (
-        util.hasNZeroBitPrefix(p1, complexityValue) and
-        util.hasNZeroBitPrefix(p2, complexityValue))
