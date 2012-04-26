@@ -13,8 +13,6 @@ from entangled.kademlia import msgtypes
 from entangled.kademlia import msgformat
 from entangled.kademlia.contact import Contact
 
-import binascii
-
 
 class TintangledProtocol(KademliaProtocol):
   """ Handles and parses incoming RPC messages (and responses)

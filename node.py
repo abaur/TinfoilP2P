@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # coding: UTF-8
 
+
 import entangled
 import entangled.kademlia.constants
 import entangled.kademlia.contact
@@ -22,11 +23,27 @@ import time
 RSA_BITS = 2048
 ID_LENGTH = 20 # in bytes
 
+
+# Borrowed from kademlia - need it as a decorator below
+def rpcmethod(func):
+  func.rpcmethod = True
+  return func
+
+
 # note(purbak): hmm indenteringen ser lidt funky ud. fx. er alle funktioner der er
 # defineret efter _iterativeFind indenteret med 4 spaces mens _iterativeFind kun er
 # indenteret med 2. Derudover er der 4 linjers kode lige efter definitionen af
 # startIteration() som ser ud til at ligge udenfor alle scopes (burde det i så fald
 # ikke ligge et sted mere oplagt end mellem 2 funktioner).
+
+# NOTE(cskau): Det fald mig også for øje, men efter lidt studsen ser den nu
+#  god nok ud.
+# Det der sker er at der et funktioner defineret inden i methoden.
+# _iterativeFind indeholder en række lokale funktioner som kun er tilgængelig
+#  i dens eget scope.
+# Det du ser til sidst er de sidste fire linjer kode i _iterativeFind.
+# Denne kode kalder nu alle de ovenstående funktioner.
+# Det er absolut ikke kønt, men det er gyldigt.
 
 class TintangledNode(entangled.EntangledNode):
   def __init__(
@@ -34,11 +51,15 @@ class TintangledNode(entangled.EntangledNode):
       networkProtocol=None):
     """ Initializes a TintangledNode."""
     
+    # TODO(cskau): Can't we just override the one place where _generateID
+    #  /isn't/ used right, instead all the other places where it /is/ ?
     if id == None:
       id = self._generateRandomID()
 
     entangled.EntangledNode.__init__(
         self, id, udpPort, dataStore, routingTable,
+        # TODO(cskau): This protocol seems buggy.
+        # It doesn't seem to store in the network - only locally at the orig node
         networkProtocol = protocol.TintangledProtocol(self))
     self.rsaKey = None
 
@@ -278,6 +299,8 @@ class TintangledNode(entangled.EntangledNode):
     print('publishData: "%s":"%s"' % (key, data))
     entangled.EntangledNode.publishData(self, key, data)
 
+  @rpcmethod
   def store(self, key, value, originalPublisherID=None, age=0, **kwargs):
     print('store: "%s":"%s" (%s, %s)' % (key, value, originalPublisherID, age))
     entangled.EntangledNode.store(self, key, value, originalPublisherID, age, **kwargs)
+
