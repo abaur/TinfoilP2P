@@ -1,15 +1,21 @@
 #!/usr/bin/env python
 # coding: UTF-8
 
-import Crypto.Random
 import binascii
+import Crypto.Random
 
-# Maybe call it compareNBits
-def sharesXBitPrefix(bitpattern1, bitpattern2, prefixLength):
-  """Compares the X first bits in the two specified bitpatterns."""
+
+def sharesXBitPrefix(value1, value2, prefixLength):
+  """Compares the X first bits in the two specified values."""
+  _value1, _value2 = value1, value2
+  # if input was binary strings we need to first convert to ints
+  if type(_value1) == str:
+    _value1 = bin2int(_value1)
+  if type(_value2) == str:
+    _value2 = bin2int(_value2)
   # bitmask of all ones in the prefixLength lowest bits
   bitmask = ((2 ** prefixLength) - 1)
-  return ((bitpattern1 & bitmask) == (bitpattern2 & bitmask))
+  return ((_value1 & bitmask) == (_value2 & bitmask))
 
 def hasNZeroBitPrefix(value, n):
   """Check whether the first N bits in the specified value are all zero."""
@@ -25,20 +31,20 @@ def bin2int(value):
   """Converts binary to integer."""
   return int(binascii.hexlify(value), base = 16)
 
-def int2bin(value):
+def int2bin(value, nbytes = 20):
   """Converts integer to binary."""
-  return binascii.unhexlify(hex(value)[2:-1].rjust(40, '0'))
+  return binascii.unhexlify(hex(value)[2:-1].rjust((2 * nbytes), '0'))
 
 def hex2int(value):
   """Converts hex to integer."""
   return int(value, base = 16)
 
-def int2hex(value):
+def int2hex(value, nbytes = 20):
   """Converts integer to hex."""
-  return hex(value)[2:-1].rjust(40, '0')
+  return hex(value)[2:-1].rjust((2 * nbytes), '0')
 
-def hex2bin(value):
-  return binascii.unhexlify(value.rjust(40, '0'))
+def hex2bin(value, nbytes = 20):
+  return binascii.unhexlify(value.rjust((2 * nbytes), '0'))
 
 def hsh2int(value):
   """Converts a hex hash to integer."""
