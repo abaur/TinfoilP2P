@@ -291,7 +291,7 @@ class TintangledNode(entangled.EntangledNode):
   # -*- Logging Decorators -*-
 
   def addContact(self, contact):
-    print('addContact: "%s"' % (contact))
+    #print('I : %s adds: "%s"' % (binascii.hexlify(self.id), binascii.hexlify(contact.id)))
     entangled.EntangledNode.addContact(self, contact)
 
   def publishData(self, key, data):
