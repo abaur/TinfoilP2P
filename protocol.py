@@ -12,6 +12,8 @@ from entangled.kademlia import encoding
 import msgtypes
 import msgformat
 from entangled.kademlia.contact import Contact
+import Crypto.Hash.SHA
+
 
 reactor = twisted.internet.reactor
 
