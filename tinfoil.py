@@ -13,6 +13,7 @@ import Crypto,\
 import binascii, util
 
 SYMMETRIC_KEY_LENGTH = 32 # (bytes)
+NONCE_LENGTH = 16 # (bytes)
 
 class Client:
   '''A TinFoil Net client
@@ -31,25 +32,19 @@ class Client:
     self.postKeys = {}
 
   def join(self, knownNodes):
-    '''Join the social network.
+    """Join the social network.
     Calculate our userID and join network at given place.
     This involves:
-    - requesting a random ID from the network.
+    - generating a random ID by solving cryptographic puzzles,
+      which serves as a guard against Sybil attacks.
     - generate public and private keys for new id.
     - notifying and requesting involved parties of the selected position.
     OR if the user has already created his ID in the past.
     - use the previously established private key to authenticate in network.
-    Note:
-    The protocol will include a crypto challenge (say bcrypt? like bitcoin)
-    as a proof of work guard against abuse.
-    The first requested peer will challenge the new-comer.
-    Code Sketch:
-      userID = getRandomIDFromNetwork(myIP)
-    '''
-    self.node = TintangledNode(udpPort = self.udpPort)
+    """
+    self.node = TintangledNode(udpPort = self.udpPort) # also generates the ID.
     self.node.joinNetwork(knownNodes)
-    print(
-        'Your ID is: %s   - Tell your friends!' % 
+    print('Your ID is: %s   - Tell your friends!' % 
             binascii.hexlify(self.node.id))
     twisted.internet.reactor.run()
 
@@ -108,7 +103,8 @@ class Client:
     """
     newSequenceNumber = self._getSequenceNumber()
     postKey = util.generateRandomString(SYMMETRIC_KEY_LENGTH)
-    encryptedContent = self._encryptPost(postKey, content)
+    nonce = util.generateRandomString(NONCE_LENGTH)
+    encryptedContent = self._encryptPost(postKey, nonce, content)
     # We need to store post keys used so we can issue sharing keys later
     # TODO(cskau): whenever we update this, we should store it securely in net
     self.postKeys[newSequenceNumber] = postKey
@@ -125,37 +121,43 @@ class Client:
     self.sequenceNumber += 1
     return self.sequenceNumber
 
-  def _encryptPost(self, key, post):
+  def _encryptPost(self, key, nonce, post):
     """Encrypt a post with a symmetric key.
 
     @param key: must be 16, 24, or 32 bytes long.
     @type key: str
 
     """
+    
     if not len(key) in [16, 24, 32]:
-      raise 'aah ma gaawd!'
-    # TODO(cskau): As discussed: randomly generate a nonce and send along
-    #  with the private key.
-    nonce = 'abcdefghijklmnop' # TODO(purbak): Something else.
+      raise 'Specified key had an invalid key length, it should be 16, 24 or 32.'
+    if len(nonce) != NONCE_LENGTH:
+      raise 'Specified nonce had an invalid key length, it should be 16.'
+      
     aesKey = Crypto.Cipher.AES.new(key, Crypto.Cipher.AES.MODE_CBC, nonce)
     # NOTE(cskau): *input* has to be a 16-multiple, pad with whitespace
     return aesKey.encrypt(post + (' ' * (16 - (len(post) % 16))))
 
-  def _decryptPost(self, key, post):
+  def _decryptPost(self, key, nonce, post):
     """Decrypt a post with a symmetric key.
 
     @param key: must be 16, 24, or 32 bytes long.
     @type key: str
 
     """
+    
     if not len(key) in [16, 24, 32]:
-      raise 'aah ma gaawd!'
-    # TODO(cskau): see above
-    nonce = 'abcdefghijklmnop' # TODO(purbak): Something else.
+      raise 'Specified key had an invalid key length, it should be 16, 24 or 32.'
+    if len(nonce) != NONCE_LENGTH:
+      raise 'Specified nonce had an invalid key length, it should be 16.'
+      
     aesKey = Crypto.Cipher.AES.new(key, Crypto.Cipher.AES.MODE_CBC, nonce)
-    return aesKey.decrypt(post)
+    decryptedMessage = aesKey.decrypt(post)
+    # remove any whitespace padding.
+    return decryptedMessage.strip()
 
   def _processUpdatesResult(self, result):
+    """todo."""
     # TODO(cskau): ???
     print result
 
@@ -186,7 +188,7 @@ class Client:
   def _signMessage(self, message):
     '''Signs the specified message using the node's private key.'''
     hashValue = Crypto.Hash.SHA.new(message).digest()
-    return self.rsaKey.sign(hashValue, '')
+    return self.rsaKey.sign(hashValue, '') # Extra parameter not relevant for RSA.
 
   def _verifyMessage(self, message, signature):
     '''Verify a message based on the specified signature.'''
@@ -196,12 +198,12 @@ class Client:
   ## ---- "Soft" API ----
 
   def addFriend(self, friendsID):
-    # Add friends known ID to the friends set
+    """Adds the specified friendsID to the user's friend set."""
     self.friends.add(friendsID)
     self.postCache[friendsID] = {}
 
   def getDigest(self, n = 10):
-    """Gets latest n updates from friends"""
+    """Gets latest n updates from friends."""
     digest = []
     for f in self.friends:
       # update post cache
