@@ -22,11 +22,17 @@ import time
 RSA_BITS = 2048
 ID_LENGTH = 20 # in bytes
 
+# note(purbak): hmm indenteringen ser lidt funky ud. fx. er alle funktioner der er
+# defineret efter _iterativeFind indenteret med 4 spaces mens _iterativeFind kun er
+# indenteret med 2. Derudover er der 4 linjers kode lige efter definitionen af
+# startIteration() som ser ud til at ligge udenfor alle scopes (burde det i så fald
+# ikke ligge et sted mere oplagt end mellem 2 funktioner).
 
 class TintangledNode(entangled.EntangledNode):
   def __init__(
       self, id=None, udpPort=4000, dataStore=None, routingTable=None,
       networkProtocol=None):
+    """ Initializes a TintangledNode."""
     
     if id == None:
       id = self._generateRandomID()
@@ -167,9 +173,11 @@ class TintangledNode(entangled.EntangledNode):
       return deadContactID
 
     def cancelActiveProbe(contactID, nodeToRemove):
+      """Cancels the specified probe of a node."""
       activeProbes.remove(nodeToRemove)
 
     def checkIfWeAreDone():
+      """Check if we have found what we were looking for."""
       if len(activeProbes):
         # Schedule the next iteration if there are any active calls (Kademlia uses loose parallelism)
         twisted.internet.reactor.callLater(
@@ -185,6 +193,7 @@ class TintangledNode(entangled.EntangledNode):
         outerDf.callback(activeContacts)
 
     def contactNode(nodeToContact, candidateNodesToContact):
+      """Contacts the specified node."""
       if nodeToContact.id not in alreadyContacted:
         activeProbes.append(nodeToContact.id)
         rpcMethod = getattr(nodeToContact, rpc)
@@ -196,6 +205,7 @@ class TintangledNode(entangled.EntangledNode):
 
     # Send parallel, asynchronous FIND_NODE RPCs to the shortlist of contacts
     def startIteration():
+      """Starts contacting nodes."""
       contactedNow = 0
       shortlist.sort(lambda firstContact, secondContact, targetKey=key: 
           cmp(
@@ -215,7 +225,7 @@ class TintangledNode(entangled.EntangledNode):
     return outerDf
 
   def _generateRandomID(self, complexityValue = 2):
-    '''Generates the NodeID by solving two cryptographic puzzles.'''
+    """Generates the NodeID by solving two cryptographic puzzles."""
     print('Generating a crypto ID...')
     # Solve the static cryptographic puzzle.
     rsaKey = None
@@ -248,7 +258,7 @@ class TintangledNode(entangled.EntangledNode):
     return nodeID.digest()
 
   def _verifyID(nodeID, x, complexityValue):
-    '''Verifies if a user's ID has been generated using the '''
+    """Verifies if a user's ID has been generated using the cryptographic puzzles."""
     p1 = util.hsh2int(Crypto.Hash.SHA.new(nodeID))
     p2 = util.hsh2int(Crypto.Hash.SHA.new(
         util.int2bin((util.bin2int(nodeID) ^ x))))
