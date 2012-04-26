@@ -11,6 +11,7 @@ class TinFront(twisted.web.resource.Resource):
   numberRequests = 0
 
   def __init__(self, port, node):
+    """Initializes the TinFront."""
     self.port = port
     self.node = node
     twisted.internet.reactor.listenTCP(
@@ -18,6 +19,7 @@ class TinFront(twisted.web.resource.Resource):
         twisted.web.server.Site(self))
 
   def _handleRequest(self, request):
+    """Handles the request."""
     path = request.uri.split('?')[0]
     query = (
         request.uri.split('?')[1]
@@ -38,23 +40,25 @@ class TinFront(twisted.web.resource.Resource):
       print(request.uri)
 
   def render_GET(self, request):
+    """Renders the result of the GET request."""
     self._handleRequest(request)
     self.numberRequests += 1
     request.setHeader("content-type", "text/html")
     return (
       '''<h1>Welcome to TinFoil Net</h1>
-Your ID is: %(id)s
-<form action="/post" method="get">
-  <input type="text" name="content" placeholder="What's on your mind?" />
-</form>
-Digest:
-<ul>
-  %(digest)s
-</ul>
-<form action="/addfriend" method="get">
-  <input type="text" name="friendsid" placeholder="Add friend by ID" />
-</form>''' % {
+      Your ID is: %(id)s
+      <form action="/post" method="get">
+        <input type="text" name="content" placeholder="What's on your mind?" />
+      </form>
+      Digest:
+      <ul>
+        %(digest)s
+      </ul>
+      <form action="/addfriend" method="get">
+        <input type="text" name="friendsid" placeholder="Add friend by ID" />
+      </form>''' % {
         'digest': self.node.getDigest(),
         'id': binascii.hexlify(self.node.node.id),
       })
 
+# end-of-tinfront.py
