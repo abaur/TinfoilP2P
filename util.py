@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: UTF-8
 
-import binascii
+
 import Crypto.Random
 
 
@@ -29,24 +29,24 @@ def generateRandomString(length):
 
 def bin2int(value):
   """Converts binary to integer."""
-  return int(binascii.hexlify(value), base = 16)
+  return long(value.encode('hex'), base = 16)
 
 def int2bin(value, nbytes = 20):
   """Converts integer to binary."""
-  return binascii.unhexlify(hex(value)[2:-1].rjust((2 * nbytes), '0'))
+  return (hex(value)[2:-1].rjust((2 * nbytes), '0')).decode('hex')
 
 def hex2int(value):
   """Converts hex to integer."""
-  return int(value, base = 16)
+  return long(value, base = 16)
 
 def int2hex(value, nbytes = 20):
   """Converts integer to hex."""
   return hex(value)[2:-1].rjust((2 * nbytes), '0')
 
 def hex2bin(value, nbytes = 20):
-  return binascii.unhexlify(value.rjust((2 * nbytes), '0'))
+  return (value.rjust((2 * nbytes), '0')).decode('hex')
 
 def hsh2int(value):
   """Converts a hex hash to integer."""
-  return int(value.hexdigest(), base = 16)
+  return long(value.hexdigest(), base = 16)
 
