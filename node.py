@@ -1,25 +1,29 @@
 #!/usr/bin/env python
+# coding: UTF-8
 
-from entangled import EntangledNode
-from protocol import TintangledProtocol
-import hashlib, random, time
-
-from twisted.internet import defer
-
-from entangled.kademlia import constants, routingtable, datastore
-import entangled.kademlia.protocol as protocol
+import entangled
+import entangled.kademlia.constants
+import entangled.kademlia.contact
+import entangled.kademlia.protocol
 import twisted.internet.reactor
 import twisted.internet.threads
-from entangled.kademlia.contact import Contact
+import twisted.internet.defer
 
-import Crypto.Hash.SHA
+import protocol
 import util
+
 import binascii
+import Crypto.Hash.SHA
+import hashlib
+import random
+import time
+
 
 RSA_BITS = 2048
 ID_LENGTH = 20 # in bytes
 
-class TintangledNode(EntangledNode):
+
+class TintangledNode(entangled.EntangledNode):
   def __init__(
       self, id=None, udpPort=4000, dataStore=None, routingTable=None,
       networkProtocol=None):
@@ -27,9 +31,9 @@ class TintangledNode(EntangledNode):
     if id == None:
       id = self._generateRandomID()
 
-    EntangledNode.__init__(
+    entangled.EntangledNode.__init__(
         self, id, udpPort, dataStore, routingTable,
-        networkProtocol = TintangledProtocol(self))
+        networkProtocol = protocol.TintangledProtocol(self))
     self.rsaKey = None
 
   def _iterativeFind(self, key, startupShortlist=None, rpc='findNode'):
@@ -66,13 +70,15 @@ class TintangledNode(EntangledNode):
       findValue = False
     shortlist = []
     if startupShortlist == None:
-      shortlist = self._routingTable.findCloseNodes(key, constants.alpha)
+      shortlist = self._routingTable.findCloseNodes(
+          key,
+          entangled.kademlia.constants.alpha)
       if key != self.id:
         # Update the "last accessed" timestamp for the appropriate k-bucket
         self._routingTable.touchKBucket(key)
       if len(shortlist) == 0:
         # This node doesn't know of any other nodes
-        fakeDf = defer.Deferred()
+        fakeDf = twisted.internet.defer.Deferred()
         fakeDf.callback([])
         return fakeDf
     else:
@@ -105,7 +111,11 @@ class TintangledNode(EntangledNode):
       else:
         # If it's not in the shortlist; we probably used a fake ID to reach it
         # - reconstruct the contact, using the real node ID this time
-        aContact = Contact(responseMsg.nodeID, originAddress[0], originAddress[1], self._protocol)
+        aContact = entangled.kademlia.contact.Contact(
+            responseMsg.nodeID,
+            originAddress[0],
+            originAddress[1],
+            self._protocol)
       activeContacts.append(aContact)
       # This makes sure "bootstrap"-nodes with "fake" IDs don't get queried twice
       if responseMsg.nodeID not in alreadyContacted:
@@ -133,7 +143,11 @@ class TintangledNode(EntangledNode):
 
         for contactTriple in result:
           if isinstance(contactTriple, (list, tuple)) and len(contactTriple) == 3:
-            testContact = Contact(contactTriple[0], contactTriple[1], contactTriple[2], self._protocol)
+            testContact = entangled.kademlia.contact.Contact(
+                contactTriple[0],
+                contactTriple[1],
+                contactTriple[2],
+                self._protocol)
             if testContact not in alreadyContacted:
               contactsGateheredFromNode.append(testContact)
         if len(contactsGateheredFromNode):
@@ -146,7 +160,7 @@ class TintangledNode(EntangledNode):
 
     def nodeFailedToRespond(failure, otherNodesToContact):
       """ @type failure: twisted.python.failure.Failure """
-      failure.trap(protocol.TimeoutError)
+      failure.trap(entangled.kademlia.protocol.TimeoutError)
       deadContactID = failure.getErrorMessage()
       if len(otherNodesToContact):
         contactNode(otherNodesToContact.pop(), otherNodesToContact)
@@ -158,7 +172,9 @@ class TintangledNode(EntangledNode):
     def checkIfWeAreDone():
       if len(activeProbes):
         # Schedule the next iteration if there are any active calls (Kademlia uses loose parallelism)
-        twisted.internet.reactor.callLater(constants.iterativeLookupDelay, checkIfWeAreDone) #IGNORE:E1101
+        twisted.internet.reactor.callLater(
+            entangled.kademlia.constants.iterativeLookupDelay,
+            checkIfWeAreDone) #IGNORE:E1101
       # Check for a quick contact response that made an update to the shortList
       elif key in findValueResult:
         #print '++++++++++++++ DONE (findValue found) +++++++++++++++\n\n'
@@ -186,14 +202,14 @@ class TintangledNode(EntangledNode):
               self._routingTable.distance(firstContact.id, targetKey),
               self._routingTable.distance(secondContact.id, targetKey)))
       # Store the current shortList length before contacting other nodes
-      while (contactedNow < constants.alpha) and len(shortlist):
+      while (contactedNow < entangled.kademlia.constants.alpha) and len(shortlist):
         contact = shortlist.pop()
         contactNode(contact, shortlist)
         contactedNow += 1
 
       checkIfWeAreDone()
       
-    outerDf = defer.Deferred()
+    outerDf = twisted.internet.defer.Deferred()
     # Start the iterations
     startIteration()
     return outerDf
@@ -241,3 +257,17 @@ class TintangledNode(EntangledNode):
     return (
         util.hasNZeroBitPrefix(p1, complexityValue) and
         util.hasNZeroBitPrefix(p2, complexityValue))
+
+  # -*- Logging Decorators -*-
+
+  def addContact(self, contact):
+    print('addContact: "%s"' % (contact))
+    entangled.EntangledNode.addContact(self, contact)
+
+  def publishData(self, key, data):
+    print('publishData: "%s":"%s"' % (key, data))
+    entangled.EntangledNode.publishData(self, key, data)
+
+  def store(self, key, value, originalPublisherID=None, age=0, **kwargs):
+    print('store: "%s":"%s" (%s, %s)' % (key, value, originalPublisherID, age))
+    entangled.EntangledNode.store(self, key, value, originalPublisherID, age, **kwargs)

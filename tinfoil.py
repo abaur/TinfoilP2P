@@ -112,10 +112,11 @@ class Client:
     # We need to store post keys used so we can issue sharing keys later
     # TODO(cskau): whenever we update this, we should store it securely in net
     self.postKeys[newSequenceNumber] = postKey
-    postID = ('%s:post:%s' % (self.userID, newSequenceNumber))
-    self.node.publishData(postID, encryptedContent)
+    postID = ('%s:post:%s' % (self.node.id, newSequenceNumber))
+    postDefer = self.node.publishData(postID, encryptedContent)
     # update our latest sequence number
-    self.node.publishData('%s:latest', newSequenceNumber)
+    latestID = ('%s:latest' % (self.node.id))
+    latestDefer = self.node.publishData(latestID, newSequenceNumber)
 
   def _getSequenceNumber(self):
     """Return next, unused sequence number unique to this user."""
