@@ -1,37 +1,67 @@
 #!/usr/bin/env python
+# coding: UTF-8
 
-from entangled import EntangledNode
-from protocol import TintangledProtocol
-import hashlib, random, time, constants
 
-from twisted.internet import defer
-
-from entangled.kademlia import constants, routingtable, datastore
-import entangled.kademlia.protocol as protocol
+import entangled
+import entangled.kademlia.constants
+import entangled.kademlia.contact
+import entangled.kademlia.protocol
 import twisted.internet.reactor
 import twisted.internet.threads
-from entangled.kademlia.contact import Contact
+import twisted.internet.defer
 
-import Crypto.Hash.SHA
+import protocol
 import util
+
 import binascii
+import Crypto.Hash.SHA
+import hashlib
+import random
+import time
+
 
 RSA_BITS = 2048
 ID_LENGTH = 20 # in bytes
 
-class TintangledNode(EntangledNode):
+
+# Borrowed from kademlia - need it as a decorator below
+def rpcmethod(func):
+  func.rpcmethod = True
+  return func
+
+
+# note(purbak): hmm indenteringen ser lidt funky ud. fx. er alle funktioner der er
+# defineret efter _iterativeFind indenteret med 4 spaces mens _iterativeFind kun er
+# indenteret med 2. Derudover er der 4 linjers kode lige efter definitionen af
+# startIteration() som ser ud til at ligge udenfor alle scopes (burde det i så fald
+# ikke ligge et sted mere oplagt end mellem 2 funktioner).
+
+# NOTE(cskau): Det fald mig også for øje, men efter lidt studsen ser den nu
+#  god nok ud.
+# Det der sker er at der et funktioner defineret inden i methoden.
+# _iterativeFind indeholder en række lokale funktioner som kun er tilgængelig
+#  i dens eget scope.
+# Det du ser til sidst er de sidste fire linjer kode i _iterativeFind.
+# Denne kode kalder nu alle de ovenstående funktioner.
+# Det er absolut ikke kønt, men det er gyldigt.
+
+class TintangledNode(entangled.EntangledNode):
   def __init__(
       self, id=None, udpPort=4000, dataStore=None, routingTable=None,
       networkProtocol=None):
+    """ Initializes a TintangledNode."""
     
     self.rsaKey = None
     
     if id == None:
       id = self._generateRandomID()
 
-    EntangledNode.__init__(
+    entangled.EntangledNode.__init__(
         self, id, udpPort, dataStore, routingTable,
-        networkProtocol = TintangledProtocol(self))
+        # TODO(cskau): This protocol seems buggy.
+        # It doesn't seem to store in the network - only locally at the orig node
+        networkProtocol = protocol.TintangledProtocol(self))
+    self.rsaKey = None
 
   def _iterativeFind(self, key, startupShortlist=None, rpc='findNode'):
     """ The basic Kademlia iterative lookup operation (for nodes/values)
@@ -67,13 +97,15 @@ class TintangledNode(EntangledNode):
       findValue = False
     shortlist = []
     if startupShortlist == None:
-      shortlist = self._routingTable.findCloseNodes(key, constants.alpha)
+      shortlist = self._routingTable.findCloseNodes(
+          key,
+          entangled.kademlia.constants.alpha)
       if key != self.id:
         # Update the "last accessed" timestamp for the appropriate k-bucket
         self._routingTable.touchKBucket(key)
       if len(shortlist) == 0:
         # This node doesn't know of any other nodes
-        fakeDf = defer.Deferred()
+        fakeDf = twisted.internet.defer.Deferred()
         fakeDf.callback([])
         return fakeDf
     else:
@@ -106,7 +138,11 @@ class TintangledNode(EntangledNode):
       else:
         # If it's not in the shortlist; we probably used a fake ID to reach it
         # - reconstruct the contact, using the real node ID this time
-        aContact = Contact(responseMsg.nodeID, originAddress[0], originAddress[1], self._protocol)
+        aContact = entangled.kademlia.contact.Contact(
+            responseMsg.nodeID,
+            originAddress[0],
+            originAddress[1],
+            self._protocol)
       activeContacts.append(aContact)
       # This makes sure "bootstrap"-nodes with "fake" IDs don't get queried twice
       if responseMsg.nodeID not in alreadyContacted:
@@ -134,7 +170,11 @@ class TintangledNode(EntangledNode):
 
         for contactTriple in result:
           if isinstance(contactTriple, (list, tuple)) and len(contactTriple) == 3:
-            testContact = Contact(contactTriple[0], contactTriple[1], contactTriple[2], self._protocol)
+            testContact = entangled.kademlia.contact.Contact(
+                contactTriple[0],
+                contactTriple[1],
+                contactTriple[2],
+                self._protocol)
             if testContact not in alreadyContacted:
               contactsGateheredFromNode.append(testContact)
         if len(contactsGateheredFromNode):
@@ -147,19 +187,23 @@ class TintangledNode(EntangledNode):
 
     def nodeFailedToRespond(failure, otherNodesToContact):
       """ @type failure: twisted.python.failure.Failure """
-      failure.trap(protocol.TimeoutError)
+      failure.trap(entangled.kademlia.protocol.TimeoutError)
       deadContactID = failure.getErrorMessage()
       if len(otherNodesToContact):
         contactNode(otherNodesToContact.pop(), otherNodesToContact)
       return deadContactID
 
     def cancelActiveProbe(contactID, nodeToRemove):
+      """Cancels the specified probe of a node."""
       activeProbes.remove(nodeToRemove)
 
     def checkIfWeAreDone():
+      """Check if we have found what we were looking for."""
       if len(activeProbes):
         # Schedule the next iteration if there are any active calls (Kademlia uses loose parallelism)
-        twisted.internet.reactor.callLater(constants.iterativeLookupDelay, checkIfWeAreDone) #IGNORE:E1101
+        twisted.internet.reactor.callLater(
+            entangled.kademlia.constants.iterativeLookupDelay,
+            checkIfWeAreDone) #IGNORE:E1101
       # Check for a quick contact response that made an update to the shortList
       elif key in findValueResult:
         #print '++++++++++++++ DONE (findValue found) +++++++++++++++\n\n'
@@ -170,6 +214,7 @@ class TintangledNode(EntangledNode):
         outerDf.callback(activeContacts)
 
     def contactNode(nodeToContact, candidateNodesToContact):
+      """Contacts the specified node."""
       if nodeToContact.id not in alreadyContacted:
         activeProbes.append(nodeToContact.id)
         rpcMethod = getattr(nodeToContact, rpc)
@@ -181,26 +226,27 @@ class TintangledNode(EntangledNode):
 
     # Send parallel, asynchronous FIND_NODE RPCs to the shortlist of contacts
     def startIteration():
+      """Starts contacting nodes."""
       contactedNow = 0
       shortlist.sort(lambda firstContact, secondContact, targetKey=key: 
           cmp(
               self._routingTable.distance(firstContact.id, targetKey),
               self._routingTable.distance(secondContact.id, targetKey)))
       # Store the current shortList length before contacting other nodes
-      while (contactedNow < constants.alpha) and len(shortlist):
+      while (contactedNow < entangled.kademlia.constants.alpha) and len(shortlist):
         contact = shortlist.pop()
         contactNode(contact, shortlist)
         contactedNow += 1
 
       checkIfWeAreDone()
       
-    outerDf = defer.Deferred()
+    outerDf = twisted.internet.defer.Deferred()
     # Start the iterations
     startIteration()
     return outerDf
 
-  def _generateRandomID(self):
-    '''Generates the NodeID by solving two cryptographic puzzles.'''
+  def _generateRandomID(self, complexityValue = 2):
+    """Generates the NodeID by solving two cryptographic puzzles."""
     print('Generating a crypto ID...')
     # Solve the static cryptographic puzzle.
     rsaKey = None
@@ -231,3 +277,30 @@ class TintangledNode(EntangledNode):
     # Found a correct value of X and nodeID
     self.x = x
     return nodeID.digest()
+
+  def _verifyID(nodeID, x, complexityValue):
+    """Verifies if a user's ID has been generated using the cryptographic puzzles."""
+    p1 = util.hsh2int(Crypto.Hash.SHA.new(nodeID))
+    p2 = util.hsh2int(Crypto.Hash.SHA.new(
+        util.int2bin((util.bin2int(nodeID) ^ x))))
+
+    # check preceeding c_i bits in P1 and P2 using sharesXPrefices.
+    return (
+        util.hasNZeroBitPrefix(p1, complexityValue) and
+        util.hasNZeroBitPrefix(p2, complexityValue))
+
+  # -*- Logging Decorators -*-
+
+  def addContact(self, contact):
+    print('addContact: "%s"' % (contact))
+    entangled.EntangledNode.addContact(self, contact)
+
+  def publishData(self, key, data):
+    print('publishData: "%s":"%s"' % (key, data))
+    entangled.EntangledNode.publishData(self, key, data)
+
+  @rpcmethod
+  def store(self, key, value, originalPublisherID=None, age=0, **kwargs):
+    print('store: "%s":"%s" (%s, %s)' % (key, value, originalPublisherID, age))
+    entangled.EntangledNode.store(self, key, value, originalPublisherID, age, **kwargs)
+

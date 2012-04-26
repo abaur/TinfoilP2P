@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 # coding: UTF-8
+
+
 from entangled.kademlia.protocol import KademliaProtocol
 from twisted.internet import protocol, defer
 from twisted.python import failure
@@ -10,10 +12,7 @@ from entangled.kademlia import encoding
 import msgtypes
 import msgformat
 from entangled.kademlia.contact import Contact
-import binascii
-import Crypto.Hash.SHA
 
-reactor = twisted.internet.reactor
 
 class TintangledProtocol(KademliaProtocol):
   def __init__(self, node, msgEncoder=encoding.Bencode(), msgTranslator=msgformat.DefaultFormat()):
@@ -118,16 +117,16 @@ class TintangledProtocol(KademliaProtocol):
 
     message = self._translator.fromPrimitive(msgPrimitive)
     remoteContact = Contact(message.nodeID, address[0], address[1], self)
-    remoteId = util.bin2int(remoteContact.id)
-    if not self._verifyID(remoteContact.id, message.crypto_challenge_x):
-      print 'Verification failed'
-      return
-    #As written in s/kademlia the message is signed and actively valid, if the sender address is valid and comes from a RPC response 
-    #Actively valid sender addresses are immediately added to their corresponding bucket.
-    #Valid sender addresses are only added to a bucket if the nodeId preffix differs in an appropriate amount of bits
+    # As written in s/kademlia the message is signed and actively valid, 
+    #  if the sender address is valid and comes from a RPC response.
+    # Actively valid sender addresses are immediately added to their 
+    #  corresponding bucket.
+    # Valid sender addresses are only added to a bucket if the nodeId 
+    #  preffix differs in an appropriate amount of bits.
     if isinstance(message, msgtypes.RequestMessage):
       # This is an RPC method request
-      if util.sharesXBitPrefix(remoteId, util.bin2int(self._node.id), 33) == False:
+      # TODO(cskau): Why 33 bits? Also, this is a constant!
+      if util.sharesXBitPrefix(remoteContact.id, self._node.id, 33) == False:
         self._node.addContact(remoteContact)
       self._handleRPC(remoteContact, message.id, message.request, message.args)
     elif isinstance(message, msgtypes.ResponseMessage):
@@ -142,7 +141,8 @@ class TintangledProtocol(KademliaProtocol):
           del self._sentMessages[message.id]
 
           if hasattr(df, '_rpcRawResponse'):
-            # The RPC requested that the raw response message and originating address be returned; do not interpret it
+            # The RPC requested that the raw response message and 
+            #  originating address be returned; do not interpret it.
             df.callback((message, address))
           elif isinstance(message, msgtypes.ErrorMessage):
             # The RPC request raised a remote exception; raise it locally
@@ -158,7 +158,9 @@ class TintangledProtocol(KademliaProtocol):
                 exceptionClassName = '.'.join(remoteHierarchy)
                 remoteException = None
                 try:
-                  exec 'remoteException = %s("%s")' % (exceptionClassName, message.response)
+                  # TODO(cskau): "exec"? hmm...
+                  exec 'remoteException = %s("%s")' % (
+                      exceptionClassName, message.response)
                 except Exception:
                   # We could not recreate the exception; create a generic one
                   remoteException = Exception(message.response)
