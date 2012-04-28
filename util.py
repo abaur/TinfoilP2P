@@ -4,11 +4,6 @@
 
 import Crypto.Random
 
-CRYPTO_CHALLENGE_C1 = 2
-CRYPTO_CHALLENGE_C2 = 4
-NODE_ID_PREFIX_DIFFERS_BITS = 33
-
-# Maybe call it compareNBits
 
 def sharesXBitPrefix(value1, value2, prefixLength):
   """Compares the X first bits in the two specified values."""
@@ -50,6 +45,9 @@ def int2hex(value, nbytes = 20):
 
 def hex2bin(value, nbytes = 20):
   return (value.rjust((2 * nbytes), '0')).decode('hex')
+
+def bin2hex(value, nbytes = 20):
+  return (value.encode('hex')).rjust((2 * nbytes), '0')
 
 def hsh2int(value):
   """Converts a hex hash to integer."""

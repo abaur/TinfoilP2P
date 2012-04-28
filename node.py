@@ -14,14 +14,11 @@ import protocol
 import util
 
 import binascii
+import constants
 import Crypto.Hash.SHA
 import hashlib
 import random
 import time
-
-
-RSA_BITS = 2048
-ID_LENGTH = 20 # in bytes
 
 
 # Borrowed from kademlia - need it as a decorator below
@@ -47,8 +44,8 @@ def rpcmethod(func):
 
 class TintangledNode(entangled.EntangledNode):
   def __init__(
-      self, id=None, udpPort=4000, dataStore=None, routingTable=None,
-      networkProtocol=None):
+      self, id = None, udpPort = 4000, dataStore = None, routingTable = None,
+      networkProtocol = None):
     """ Initializes a TintangledNode."""
     
     self.rsaKey = None
@@ -123,7 +120,8 @@ class TintangledNode(entangled.EntangledNode):
 
     def extendShortlist(responseTuple):
       """ @type responseMsg: kademlia.msgtypes.ResponseMessage """
-      # The "raw response" tuple contains the response message, and the originating address info
+      # The "raw response" tuple contains the response message, and 
+      #  the originating address info
       responseMsg = responseTuple[0]
       originAddress = responseTuple[1] # tuple: (ip adress, udp port)
       # Make sure the responding node is valid, and abort the operation if it isn't
@@ -177,10 +175,11 @@ class TintangledNode(entangled.EntangledNode):
             if testContact not in alreadyContacted:
               contactsGateheredFromNode.append(testContact)
         if len(contactsGateheredFromNode):
-          contactsGateheredFromNode.sort(lambda firstContact, secondContact, targetKey=key: 
-              cmp(
-                  self._routingTable.distance(firstContact.id, targetKey),
-                  self._routingTable.distance(secondContact.id, targetKey)))
+          contactsGateheredFromNode.sort(
+              lambda firstContact, secondContact, targetKey=key: 
+                  cmp(
+                      self._routingTable.distance(firstContact.id, targetKey),
+                      self._routingTable.distance(secondContact.id, targetKey)))
           contactNode(contactsGateheredFromNode.pop(), contactsGateheredFromNode)
       return responseMsg.nodeID
 
@@ -199,7 +198,8 @@ class TintangledNode(entangled.EntangledNode):
     def checkIfWeAreDone():
       """Check if we have found what we were looking for."""
       if len(activeProbes):
-        # Schedule the next iteration if there are any active calls (Kademlia uses loose parallelism)
+        # Schedule the next iteration if there are any active calls
+        #  (Kademlia uses loose parallelism)
         twisted.internet.reactor.callLater(
             entangled.kademlia.constants.iterativeLookupDelay,
             checkIfWeAreDone) #IGNORE:E1101
@@ -253,8 +253,8 @@ class TintangledNode(entangled.EntangledNode):
     pub = None
 
     randomStream = Crypto.Random.new().read
-    while not util.hasNZeroBitPrefix(p, util.CRYPTO_CHALLENGE_C1):
-      rsaKey = Crypto.PublicKey.RSA.generate(RSA_BITS, randomStream)
+    while not util.hasNZeroBitPrefix(p, constants.CRYPTO_CHALLENGE_C1):
+      rsaKey = Crypto.PublicKey.RSA.generate(constants.RSA_BITS, randomStream)
       pub = str(rsaKey.n) + str(rsaKey.e)
       p = util.hsh2int(Crypto.Hash.SHA.new(Crypto.Hash.SHA.new(pub).digest()))
 
@@ -265,8 +265,8 @@ class TintangledNode(entangled.EntangledNode):
     # Solve the dynamic cryptographic puzzle.
     p, x = 0x1, None
 
-    while not util.hasNZeroBitPrefix(p, util.CRYPTO_CHALLENGE_C2):
-      x = util.bin2int(util.generateRandomString(ID_LENGTH))
+    while not util.hasNZeroBitPrefix(p, constants.CRYPTO_CHALLENGE_C2):
+      x = util.bin2int(util.generateRandomString(constants.ID_LENGTH))
       # This is madness!
       p = util.hsh2int(
           Crypto.Hash.SHA.new(
@@ -277,16 +277,13 @@ class TintangledNode(entangled.EntangledNode):
     self.x = x
     return nodeID.digest()
 
-  def _verifyID(nodeID, x, complexityValue):
-    """Verifies if a user's ID has been generated using the cryptographic puzzles."""
-    p1 = util.hsh2int(Crypto.Hash.SHA.new(nodeID))
-    p2 = util.hsh2int(Crypto.Hash.SHA.new(
-        util.int2bin((util.bin2int(nodeID) ^ x))))
+  def getNameID(self, name):
+    '''Calculate and return 160-bit ID for a given name.'''
+    h = hashlib.sha1()
+    h.update(name)
+    return h.digest()
 
-    # check preceeding c_i bits in P1 and P2 using sharesXPrefices.
-    return (
-        util.hasNZeroBitPrefix(p1, complexityValue) and
-        util.hasNZeroBitPrefix(p2, complexityValue))
+
 
   # -*- Logging Decorators -*-
 
@@ -294,9 +291,9 @@ class TintangledNode(entangled.EntangledNode):
     #print('I : %s adds: "%s"' % (binascii.hexlify(self.id), binascii.hexlify(contact.id)))
     entangled.EntangledNode.addContact(self, contact)
 
-  def publishData(self, key, data):
-    print('publishData: "%s":"%s"' % (key, data))
-    entangled.EntangledNode.publishData(self, key, data)
+  def publishData(self, name, data):
+    print('publishData: "%s":"%s"' % (name, data))
+    entangled.EntangledNode.publishData(self, name, data)
 
   @rpcmethod
   def store(self, key, value, originalPublisherID=None, age=0, **kwargs):

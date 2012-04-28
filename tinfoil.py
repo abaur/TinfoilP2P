@@ -1,19 +1,23 @@
 #!/usr/bin/env python
 # coding: UTF-8
 
+
 """The Tinfoil social network client."""
+
 
 from node import TintangledNode
 import twisted.internet.reactor
-import Crypto,\
-    Crypto.Cipher.AES,\
-    Crypto.Hash.SHA,\
-    Crypto.PublicKey.RSA,\
-    Crypto.Random
-import binascii, util
+import Crypto
+import Crypto.Cipher.AES
+import Crypto.Hash.SHA
+import Crypto.PublicKey.RSA
+import Crypto.Random
 
-SYMMETRIC_KEY_LENGTH = 32 # (bytes)
-NONCE_LENGTH = 16 # (bytes)
+import constants
+import util
+
+import binascii
+
 
 class Client:
   '''A TinFoil Net client
@@ -102,8 +106,8 @@ class Client:
     until shared through the above share() method.
     """
     newSequenceNumber = self._getSequenceNumber()
-    postKey = util.generateRandomString(SYMMETRIC_KEY_LENGTH)
-    nonce = util.generateRandomString(NONCE_LENGTH)
+    postKey = util.generateRandomString(constants.SYMMETRIC_KEY_LENGTH)
+    nonce = util.generateRandomString(constants.NONCE_LENGTH)
     encryptedContent = self._encryptPost(postKey, nonce, content)
     # We need to store post keys used so we can issue sharing keys later
     # TODO(cskau): whenever we update this, we should store it securely in net
@@ -131,7 +135,7 @@ class Client:
     
     if not len(key) in [16, 24, 32]:
       raise 'Specified key had an invalid key length, it should be 16, 24 or 32.'
-    if len(nonce) != NONCE_LENGTH:
+    if len(nonce) != constants.NONCE_LENGTH:
       raise 'Specified nonce had an invalid key length, it should be 16.'
       
     aesKey = Crypto.Cipher.AES.new(key, Crypto.Cipher.AES.MODE_CBC, nonce)
@@ -148,7 +152,7 @@ class Client:
     
     if not len(key) in [16, 24, 32]:
       raise 'Specified key had an invalid key length, it should be 16, 24 or 32.'
-    if len(nonce) != NONCE_LENGTH:
+    if len(nonce) != constants.NONCE_LENGTH:
       raise 'Specified nonce had an invalid key length, it should be 16.'
       
     aesKey = Crypto.Cipher.AES.new(key, Crypto.Cipher.AES.MODE_CBC, nonce)
@@ -171,12 +175,14 @@ class Client:
       latestPost = get(latestPostID)
     """
     delta = {}
-    keyID = '%s:latest' % (friendsID)
+    keyName = '%s:latest' % (friendsID)
+    keyID = self.node.getNameID(keyName)
     def _processSequenceNumber(result):
       if type(result) == dict:
         lastSequenceNumber = result[keyID]
         for n in range(lastKnownSequenceNumber, lastSequenceNumber):
-          postID = ('%s:post:%s' % (friendsID, n))
+          postName = ('%s:post:%s' % (friendsID, n))
+          postID = self.node.getNameID(postName)
           # ask network for updates
           self.node.iterativeFindValue(postID).addCallback(
               self._processUpdatesResult)
@@ -199,6 +205,8 @@ class Client:
 
   def addFriend(self, friendsID):
     """Adds the specified friendsID to the user's friend set."""
+    if len(friendsID) != constants.ID_LENGTH:
+      raise 'Malformed ID'
     self.friends.add(friendsID)
     self.postCache[friendsID] = {}
 

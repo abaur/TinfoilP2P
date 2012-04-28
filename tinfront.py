@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 # coding: UTF-8
 
+
 import twisted.web.server
 import twisted.web.resource
-import binascii
+
 import util
+
 
 class TinFront(twisted.web.resource.Resource):
   isLeaf = True
@@ -58,7 +60,6 @@ class TinFront(twisted.web.resource.Resource):
         <input type="text" name="friendsid" placeholder="Add friend by ID" />
       </form>''' % {
         'digest': self.node.getDigest(),
-        'id': binascii.hexlify(self.node.node.id),
+        'id': util.bin2hex(self.node.node.id),
       })
 
-# end-of-tinfront.py
