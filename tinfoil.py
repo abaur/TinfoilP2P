@@ -4,8 +4,7 @@
 
 """The Tinfoil social network client."""
 
-
-from node import TintangledNode
+import entangled.kademlia.contact
 import twisted.internet.reactor
 import Crypto
 import Crypto.Cipher.AES
@@ -13,6 +12,7 @@ import Crypto.Hash.SHA
 import Crypto.PublicKey.RSA
 import Crypto.Random
 
+from node import TintangledNode
 import constants
 import util
 
@@ -34,6 +34,7 @@ class Client:
     # TODO(cskau): maybe securely store these in the network so we don't
     #  lose them. Retrieve every time we join.
     self.postKeys = {}
+    self.postIDNameTuple = {}
 
   def join(self, knownNodes):
     """Join the social network.
@@ -161,9 +162,15 @@ class Client:
     return decryptedMessage.strip()
 
   def _processUpdatesResult(self, result):
-    """todo."""
-    # TODO(cskau): ???
-    print result
+    """Process post updates when we get them as callbacks."""
+    for resultKey in result:
+      print(resultKey)
+      if type(resultKey) == entangled.kademlia.contact.Contact:
+        print("WARN: key not found!")
+        return
+      postID = resultKey
+      friendsID, n = self.postIDNameTuple[postID]
+      self.postCache[friendsID][n] = result[postID]
 
   def getUpdates(self, friendsID, lastKnownSequenceNumber):
     """ Check for and fetch new updates on user(s)
@@ -181,8 +188,12 @@ class Client:
       if type(result) == dict:
         lastSequenceNumber = result[keyID]
         for n in range(lastKnownSequenceNumber, lastSequenceNumber):
+          # There isn't actually any post 0 (which is kinda stupid..)
+          if n == 0:
+            continue
           postName = ('%s:post:%s' % (friendsID, n))
           postID = self.node.getNameID(postName)
+          self.postIDNameTuple[postID] = (friendsID, n)
           # ask network for updates
           self.node.iterativeFindValue(postID).addCallback(
               self._processUpdatesResult)
@@ -215,7 +226,7 @@ class Client:
     digest = []
     for f in self.friends:
       # update post cache
-      lastKnownPost = max(self.postCache[f].keys() + [0])
+      lastKnownPost = max([0] + self.postCache[f].keys())
       # Do eventual update of cache
       #  Note: unfortunaly we can't block and wait for updates, so make do
       self.getUpdates(f, lastKnownPost)
