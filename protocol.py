@@ -7,10 +7,11 @@ from twisted.internet import protocol, defer
 from twisted.python import failure
 import twisted.internet.reactor
 import util, time
-from entangled.kademlia import constants
+import constants
+
 from entangled.kademlia import encoding
-from entangled.kademlia import msgtypes
-from entangled.kademlia import msgformat
+import msgtypes
+import msgformat
 from entangled.kademlia.contact import Contact
 import Crypto.Hash.SHA
 
@@ -29,8 +30,8 @@ class TintangledProtocol(KademliaProtocol):
         util.int2bin((util.bin2int(nodeID) ^ x))))
     # check preceeding c_i bits in P1 and P2 using sharesXPrefices.
     return (
-        util.hasNZeroBitPrefix(p1, util.CRYPTO_CHALLENGE_C1) and
-        util.hasNZeroBitPrefix(p2, util.CRYPTO_CHALLENGE_C2))
+        util.hasNZeroBitPrefix(p1, constants.CRYPTO_CHALLENGE_C1) and
+        util.hasNZeroBitPrefix(p2, constants.CRYPTO_CHALLENGE_C2))
    
   def _sendResponse(self, contact, rpcID, response):
     """ Send a RPC response to the specified contact"""
@@ -132,7 +133,7 @@ class TintangledProtocol(KademliaProtocol):
     #  preffix differs in an appropriate amount of bits.
     if isinstance(message, msgtypes.RequestMessage):
       # This is an RPC method request
-      if util.sharesXBitPrefix(remoteContact.id, self._node.id, util.NODE_ID_PREFIX_DIFFERS_BITS) == False:
+      if util.sharesXBitPrefix(remoteContact.id, self._node.id, constants.NODE_ID_PREFIX_DIFFERS_BITS) == False:
         self._node.addContact(remoteContact)
       self._handleRPC(remoteContact, message.id, message.request, message.args)
     elif isinstance(message, msgtypes.ResponseMessage):
