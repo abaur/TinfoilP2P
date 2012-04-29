@@ -133,7 +133,7 @@ class TintangledProtocol(KademliaProtocol):
     #  preffix differs in an appropriate amount of bits.
     if isinstance(message, msgtypes.RequestMessage):
       # This is an RPC method request
-      if util.sharesXBitPrefix(remoteContact.id, self._node.id, util.NODE_ID_PREFIX_DIFFERS_BITS) == False:
+      if util.sharesXBitPrefix(remoteContact.id, self._node.id, constants.NODE_ID_PREFIX_DIFFERS_BITS) == False:
         self._node.addContact(remoteContact)
       self._handleRPC(remoteContact, message.id, message.request, message.args)
     elif isinstance(message, msgtypes.ResponseMessage):
