@@ -3,7 +3,7 @@
 
 
 import Crypto.Random
-
+import constants
 
 def sharesXBitPrefix(value1, value2, prefixLength):
   """Compares the X first bits in the two specified values."""

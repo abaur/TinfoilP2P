@@ -7,7 +7,8 @@ from twisted.internet import protocol, defer
 from twisted.python import failure
 import twisted.internet.reactor
 import util, time
-from entangled.kademlia import constants
+import constants
+
 from entangled.kademlia import encoding
 import msgtypes
 import msgformat
@@ -29,8 +30,8 @@ class TintangledProtocol(KademliaProtocol):
         util.int2bin((util.bin2int(nodeID) ^ x))))
     # check preceeding c_i bits in P1 and P2 using sharesXPrefices.
     return (
-        util.hasNZeroBitPrefix(p1, util.CRYPTO_CHALLENGE_C1) and
-        util.hasNZeroBitPrefix(p2, util.CRYPTO_CHALLENGE_C2))
+        util.hasNZeroBitPrefix(p1, constants.CRYPTO_CHALLENGE_C1) and
+        util.hasNZeroBitPrefix(p2, constants.CRYPTO_CHALLENGE_C2))
    
   def _sendResponse(self, contact, rpcID, response):
     """ Send a RPC response to the specified contact"""
