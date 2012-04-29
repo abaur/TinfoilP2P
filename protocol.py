@@ -9,8 +9,8 @@ import twisted.internet.reactor
 import util, time
 from entangled.kademlia import constants
 from entangled.kademlia import encoding
-from entangled.kademlia import msgtypes
-from entangled.kademlia import msgformat
+import msgtypes
+import msgformat
 from entangled.kademlia.contact import Contact
 import Crypto.Hash.SHA
 
