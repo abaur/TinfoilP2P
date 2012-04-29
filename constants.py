@@ -1,0 +1,13 @@
+#!/usr/bin/env python
+# coding: UTF-8
+
+RSA_BITS = 2048
+ID_LENGTH = 20 # in bytes
+
+SYMMETRIC_KEY_LENGTH = 32 # (bytes)
+NONCE_LENGTH = 16 # (bytes)
+
+CRYPTO_CHALLENGE_C1 = 2
+CRYPTO_CHALLENGE_C2 = 4
+NODE_ID_PREFIX_DIFFERS_BITS = 33
+
