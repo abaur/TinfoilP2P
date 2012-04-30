@@ -29,19 +29,6 @@ import constants
     headerNonce,
 ) = range(8)
 
-def fromPrimitive(msgPrimitive):
-    print msgPrimitive
-    msgType = msgPrimitive[0]
-    if msgType == typeRequest:
-        return RequestMessage(primitives = msgPrimitive)
-    elif msgType == typeResponse:
-        return ResponseMessage(primitives = msgPrimitive)
-    elif msgType == typeError:
-        return ErrorMessage(primitives = msgPrimitive)
-    else:
-        # Unknown message, no payload
-        return Message(primitives = msgPrimitive)
-
 class Message(object):
 
     """ Base class for messages - all "unknown" messages use this class """
