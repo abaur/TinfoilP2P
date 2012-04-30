@@ -50,6 +50,8 @@ class Client:
     self.node.joinNetwork(knownNodes)
     print('Your ID is: %s   - Tell your friends!' % 
         binascii.hexlify(self.node.id))
+    # Add ourself to our friends list, so we can see our own posts too..
+    self.addFriend(self.node.id)
     twisted.internet.reactor.run()
 
   def share(self, resourceID, friendsID):
