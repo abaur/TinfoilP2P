@@ -36,14 +36,16 @@ class TintangledProtocol(KademliaProtocol):
     """ Send a RPC response to the specified contact"""
     msg = msgtypes.ResponseMessage(rpcID, self._node.id,
       self._node.rsaKey, self._node.x, response)
+    msg.signedValue = self._node._signMessage(msg.stringSignatureToSign())
     msgPrimitive = self._translator.toPrimitive(msg)
     encodedMsg = self._encoder.encode(msgPrimitive)
     self._send(encodedMsg, rpcID, (contact.address, contact.port))
 
   def _sendError(self, contact, rpcID, exceptionType, exceptionMessage):
     """ Send an RPC error message to the specified contact"""
-    msg = msgtypes.ErrorMessage(rpcID, self._node.id,self._node.rsaKey, 
+    msg = msgtypes.ErrorMessage(rpcID, self._node.id, self._node.rsaKey, 
       self._node.x, exceptionType, exceptionMessage)
+    msg.signedValue = self._node._signMessage(msg.stringSignatureToSign())
     msgPrimitive = self._translator.toPrimitive(msg)
     encodedMsg = self._encoder.encode(msgPrimitive)
     self._send(encodedMsg, rpcID, (contact.address, contact.port))
@@ -75,8 +77,9 @@ class TintangledProtocol(KademliaProtocol):
                  C{ErrorMessage}).
     @rtype: twisted.internet.defer.Deferred
         """
-    msg = msgtypes.RequestMessage(self._node.id, self._node.rsaKey.n, 
-      self._node.x, method, args)
+    msg = msgtypes.RequestMessage(self._node.id, method, args, 
+        self._node.rsaKey, self._node.x)
+    msg.signedValue = self._node._signMessage(msg.stringSignatureToSign())
 
     msgPrimitive = self._translator.toPrimitive(msg)
     encodedMsg = self._encoder.encode(msgPrimitive)
@@ -128,7 +131,12 @@ class TintangledProtocol(KademliaProtocol):
     if not self._verifyID(remoteContact.id, message.cryptoChallengeX):
       return
 
-
+    rsaKey = Crypto.PublicKey.RSA.construct((message.publicKeyN,message.publicKeyE))
+    if not self._node._verifyMessage(message.stringSignatureToSign(), message.signedValue, rsaKey):
+      print '##################### Did not verify correctly'
+      return
+    
+    print '####################### Did verify correctly'
     # As written in s/kademlia the message is signed and actively valid, 
     #  if the sender address is valid and comes from a RPC response.
     # Actively valid sender addresses are immediately added to their 

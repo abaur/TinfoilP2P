@@ -273,8 +273,10 @@ class TintangledNode(entangled.EntangledNode):
     hashValue = Crypto.Hash.SHA.new(message).digest()
     return self.rsaKey.sign(hashValue, '') # Extra parameter not relevant for RSA.
 
-  def _verifyMessage(self, message, signature):
+  def _verifyMessage(self, message, signature, rsaKey = None):
     '''Verify a message based on the specified signature.'''
+    if not rsaKey:
+      rsaKey = self.rsaKey
     hashValue = Crypto.Hash.SHA.new(message).digest()
     return rsaKey.verify(hashValue, signature)
 
@@ -285,7 +287,7 @@ class TintangledNode(entangled.EntangledNode):
     entangled.EntangledNode.addContact(self, contact)
 
   def publishData(self, name, data):
-    print('publishData: "%s":"%s"' % (name, data))
+    print('publishData: "%s"' % (name))
     entangled.EntangledNode.publishData(self, name, data)
 
   @rpcmethod
