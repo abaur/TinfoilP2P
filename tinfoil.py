@@ -52,7 +52,9 @@ class Client:
     self.keyCache[self.node.id] = self.node.rsaKey
     # Add ourself to our friends list, so we can see our own posts too..
     self.addFriend(self.node.id)
-    self.node.publishData(self.node.id, self._getUserPublicKey(self.node.id))
+    self.node.publishData(
+        self.node.id,
+        util.int2bin(self._getUserPublicKey(self.node.id).publickey().n))
     twisted.internet.reactor.run()
 
   def share(self, resourceID, friendsID):
