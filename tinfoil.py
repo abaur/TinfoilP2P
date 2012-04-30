@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # coding: UTF-8
 
-
 """The Tinfoil social network client."""
 
 import entangled.kademlia.contact
@@ -17,7 +16,6 @@ import constants
 import util
 
 import binascii
-
 
 class Client:
   '''A TinFoil Net client
@@ -48,10 +46,11 @@ class Client:
     """
     self.node = TintangledNode(udpPort = self.udpPort) # also generates the ID.
     self.node.joinNetwork(knownNodes)
-    print('Your ID is: %s   - Tell your friends!' % 
+    print('Your ID is: %s   - Tell your friends!' %
         binascii.hexlify(self.node.id))
     # Add ourself to our friends list, so we can see our own posts too..
     self.addFriend(self.node.id)
+    self.node.publishData(self.node.id, self._getUserPublicKey(self.node.id))
     twisted.internet.reactor.run()
 
   def share(self, resourceID, friendsID):
@@ -140,12 +139,12 @@ class Client:
     @type key: str
 
     """
-    
+
     if not len(key) in [16, 24, 32]:
       raise 'Specified key had an invalid key length, it should be 16, 24 or 32.'
     if len(nonce) != constants.NONCE_LENGTH:
       raise 'Specified nonce had an invalid key length, it should be 16.'
-      
+
     aesKey = Crypto.Cipher.AES.new(key, Crypto.Cipher.AES.MODE_CBC, nonce)
     # NOTE(cskau): *input* has to be a 16-multiple, pad with whitespace
     return aesKey.encrypt(post + (' ' * (16 - (len(post) % 16))))
@@ -157,12 +156,12 @@ class Client:
     @type key: str
 
     """
-    
+
     if not len(key) in [16, 24, 32]:
       raise 'Specified key had an invalid key length, it should be 16, 24 or 32.'
     if len(nonce) != constants.NONCE_LENGTH:
       raise 'Specified nonce had an invalid key length, it should be 16.'
-      
+
     aesKey = Crypto.Cipher.AES.new(key, Crypto.Cipher.AES.MODE_CBC, nonce)
     decryptedMessage = aesKey.decrypt(post)
     # remove any whitespace padding.
@@ -241,7 +240,6 @@ class Client:
       digest.append(sorted(self.postCache[f].items())[-n:])
     return sorted(digest)[-n:]
 
-
 if __name__ == '__main__':
   import sys
   if len(sys.argv) < 2:
@@ -272,3 +270,4 @@ if __name__ == '__main__':
 
   client.join(knownNodes)
 
+# end-of-tinfoil.py
