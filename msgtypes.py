@@ -21,7 +21,8 @@ class Message(object):
 
 class RequestMessage(Message):
     """ Message containing an RPC request """
-    def __init__(self, nodeID, method, methodArgs, public_key_n, crypto_challenge_x, rpcID=None):
+    def __init__(self, nodeID, method, methodArgs, public_key_n, 
+        crypto_challenge_x, rpcID=None):
         if rpcID == None:
             hash = hashlib.sha1()
             hash.update(str(random.getrandbits(255)))  
@@ -33,16 +34,20 @@ class RequestMessage(Message):
 
 class ResponseMessage(Message):
     """ Message containing the result from a successful RPC request """
-    def __init__(self, rpcID, nodeID, public_key_n, crypto_challenge_x, response):
+    def __init__(self, rpcID, nodeID, public_key_n, crypto_challenge_x, 
+            response):
         Message.__init__(self, rpcID, nodeID, public_key_n, crypto_challenge_x)
         self.response = response
 
 
 class ErrorMessage(ResponseMessage):
     """ Message containing the error from an unsuccessful RPC request """
-    def __init__(self, rpcID, nodeID, public_key_n, crypto_challenge_x, exceptionType, errorMessage):
-        ResponseMessage.__init__(self, rpcID, nodeID, public_key_n, crypto_challenge_x, errorMessage)
+    def __init__(self, rpcID, nodeID, public_key_n, crypto_challenge_x, 
+        exceptionType, errorMessage):
+        ResponseMessage.__init__(self, rpcID, nodeID, public_key_n, 
+            crypto_challenge_x, errorMessage)
         if isinstance(exceptionType, type):
-            self.exceptionType = '%s.%s' % (exceptionType.__module__, exceptionType.__name__)
+            self.exceptionType = '%s.%s' % (exceptionType.__module__, 
+                exceptionType.__name__)
         else:
             self.exceptionType = exceptionType
