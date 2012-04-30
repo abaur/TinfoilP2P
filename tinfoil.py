@@ -52,6 +52,7 @@ class Client:
     self.keyCache[self.node.id] = self.node.rsaKey
     # Add ourself to our friends list, so we can see our own posts too..
     self.addFriend(self.node.id)
+    self.node.publishData(self.node.id, self._getUserPublicKey(self.node.id))
     twisted.internet.reactor.run()
 
   def share(self, resourceID, friendsID):
@@ -148,12 +149,12 @@ class Client:
     @type key: str
 
     """
-    
+
     if not len(key) in [16, 24, 32]:
       raise 'Specified key had an invalid key length, it should be 16, 24 or 32.'
     if len(nonce) != constants.NONCE_LENGTH:
       raise 'Specified nonce had an invalid key length, it should be 16.'
-      
+
     aesKey = Crypto.Cipher.AES.new(key, Crypto.Cipher.AES.MODE_CBC, nonce)
     # NOTE(cskau): *input* has to be a 16-multiple, pad with whitespace
     return aesKey.encrypt(post + (' ' * (16 - (len(post) % 16))))
@@ -165,12 +166,12 @@ class Client:
     @type key: str
 
     """
-    
+
     if not len(key) in [16, 24, 32]:
       raise 'Specified key had an invalid key length, it should be 16, 24 or 32.'
     if len(nonce) != constants.NONCE_LENGTH:
       raise 'Specified nonce had an invalid key length, it should be 16.'
-      
+
     aesKey = Crypto.Cipher.AES.new(key, Crypto.Cipher.AES.MODE_CBC, nonce)
     decryptedMessage = aesKey.decrypt(post)
     # remove any whitespace padding.
