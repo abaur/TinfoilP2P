@@ -170,6 +170,7 @@ class TintangledNode(entangled.EntangledNode):
 
     def nodeFailedToRespond(failure, otherNodesToContact):
       """ @type failure: twisted.python.failure.Failure """
+      print failure
       failure.trap(entangled.kademlia.protocol.TimeoutError)
       deadContactID = failure.getErrorMessage()
       if len(otherNodesToContact):
@@ -204,7 +205,7 @@ class TintangledNode(entangled.EntangledNode):
         rpcMethod = getattr(nodeToContact, rpc)
         df = rpcMethod(key, rawResponse=True)
         df.addCallback(extendShortlist)
-        df.addErrback(nodeFailedToRespond,candidateNodesToContact)
+        df.addErrback(nodeFailedToRespond, candidateNodesToContact)
         df.addCallback(cancelActiveProbe, nodeToContact)
         alreadyContacted.append(nodeToContact.id)
 
@@ -287,12 +288,12 @@ class TintangledNode(entangled.EntangledNode):
     entangled.EntangledNode.addContact(self, contact)
 
   def publishData(self, name, data):
-    print('publishData: "%s"' % (name))
+    #print('publishData: "%s"' % (name))
     entangled.EntangledNode.publishData(self, name, data)
 
   @rpcmethod
   def store(self, key, value, originalPublisherID=None, age=0, **kwargs):
-    print('store: "%s":"%s" (%s, %s)' % (key, value, originalPublisherID, age))
+    #print('store: "%s":"%s" (%s, %s)' % (key, value, originalPublisherID, age))
     entangled.EntangledNode.store(self, key, value, originalPublisherID, age, **kwargs)
 
 # end-of-node.py

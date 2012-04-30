@@ -28,8 +28,7 @@ import constants
     headerSignedValue, 
     headerPayload, 
     headerArgs,
-    headerNonce,
-) = range(10)
+) = range(9)
 
 class Message(object):
 
@@ -41,7 +40,6 @@ class Message(object):
             self.publicKeyN = rsaKey.n
             self.publicKeyE = rsaKey.e
             self.cryptoChallengeX = cryptoChallengeX
-            self.nonce = util.generateRandomString(constants.NONCE_LENGTH)
             self.signedValue = None
         else:
             self.fromPrimitives(primitives)
@@ -51,7 +49,6 @@ class Message(object):
         self.nodeID = primitives[headerNodeID]
         self.cryptoChallengeX = primitives[headerCryptoChallengeX]
         self.publicKeyN = primitives[headerPublicKeyN]
-        self.nonce = primitives[headerNonce]
         self.signedValue = primitives[headerSignedValue]
         self.publicKeyE = long(primitives[headerPublicKeyE])
 
@@ -60,18 +57,17 @@ class Message(object):
                 headerNodeID: self.nodeID,
                 headerCryptoChallengeX: self.cryptoChallengeX,
                 headerPublicKeyN: self.publicKeyN,
-                headerNonce: self.nonce,
                 headerSignedValue: self.signedValue,
                 headerPublicKeyE: self.publicKeyE}
         return msg
 
     def stringSignatureToSign(self):
-        return "%s%s" % (self.nodeID, self.nonce)
+        return "%s%s" % (self.nodeID, self.id)
 
 class RequestMessage(Message):
     """ Message containing an RPC request """
     def __init__(self, nodeID = None, method = None, methodArgs = None, 
-        rsaKey = None, cryptoChallengeX = None, rpcID=None, primitives = None):
+        rsaKey = None, cryptoChallengeX = None, rpcID = None, primitives = None):
         if rpcID == None:
             hash = hashlib.sha1()
             hash.update(str(random.getrandbits(255)))  
@@ -95,7 +91,6 @@ class RequestMessage(Message):
         msg[headerArgs] = self.args
         return msg
     
-
 class ResponseMessage(Message):
     """ Message containing the result from a successful RPC request """
     def __init__(self, rpcID = None, nodeID = None, rsaKey = None, 
@@ -104,7 +99,7 @@ class ResponseMessage(Message):
         Message.__init__(self, rpcID, nodeID, rsaKey, cryptoChallengeX, primitives)
 
     def stringSignatureToSign(self):
-        return "" % (Message.stringSignatureToSign(self), self.response)
+        return "%s%s" % (Message.stringSignatureToSign(self), self.response)
 
     def fromPrimitives(self, primitives):
         Message.fromPrimitives(self,primitives)
@@ -126,7 +121,8 @@ class ErrorMessage(ResponseMessage):
                 exceptionType.__name__)
         else:
             self.exceptionType = exceptionType
-        ResponseMessage.__init__(self, rpcID, nodeID, publicKeyN, 
+        self.errorMessage = errorMessage
+        ResponseMessage.__init__(self, rpcID, nodeID, rsaKey, 
             cryptoChallengeX, errorMessage, primitives)
 
     def stringSignatureToSign(self):
@@ -138,7 +134,7 @@ class ErrorMessage(ResponseMessage):
         self.errorMessage = primitives[headerArgs]        
 
     def toPrimitives(self):
-        msg = Message.toPrimitives()
+        msg = Message.toPrimitives(self)
         msg[headerType] = typeError
         msg[headerPayload] = self.exceptionType
         msg[headerArgs] = self.errorMessage
