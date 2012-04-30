@@ -15,12 +15,11 @@ import msgformat
 from entangled.kademlia.contact import Contact
 import Crypto.Hash.SHA
 
-
 reactor = twisted.internet.reactor
 
-
 class TintangledProtocol(KademliaProtocol):
-  def __init__(self, node, msgEncoder=encoding.Bencode(), msgTranslator=msgformat.DefaultFormat()):
+  def __init__(self, node, msgEncoder = encoding.Bencode(), 
+    msgTranslator = msgformat.DefaultFormat()):
         KademliaProtocol.__init__(self,node, msgEncoder, msgTranslator)
 
   def _verifyID(self, nodeID, x):
@@ -35,14 +34,16 @@ class TintangledProtocol(KademliaProtocol):
    
   def _sendResponse(self, contact, rpcID, response):
     """ Send a RPC response to the specified contact"""
-    msg = msgtypes.ResponseMessage(rpcID, self._node.id,self._node.rsaKey.n, self._node.x, response)
+    msg = msgtypes.ResponseMessage(rpcID, self._node.id,
+      self._node.rsaKey.n, self._node.x, response)
     msgPrimitive = self._translator.toPrimitive(msg)
     encodedMsg = self._encoder.encode(msgPrimitive)
     self._send(encodedMsg, rpcID, (contact.address, contact.port))
 
   def _sendError(self, contact, rpcID, exceptionType, exceptionMessage):
     """ Send an RPC error message to the specified contact"""
-    msg = msgtypes.ErrorMessage(rpcID, self._node.id,self._node.rsaKey.n, self._node.x, exceptionType, exceptionMessage)
+    msg = msgtypes.ErrorMessage(rpcID, self._node.id,self._node.rsaKey.n, 
+      self._node.x, exceptionType, exceptionMessage)
     msgPrimitive = self._translator.toPrimitive(msg)
     encodedMsg = self._encoder.encode(msgPrimitive)
     self._send(encodedMsg, rpcID, (contact.address, contact.port))
@@ -74,7 +75,8 @@ class TintangledProtocol(KademliaProtocol):
                  C{ErrorMessage}).
     @rtype: twisted.internet.defer.Deferred
         """
-    msg = msgtypes.RequestMessage(self._node.id, self._node.rsaKey.n, self._node.x, method, args)
+    msg = msgtypes.RequestMessage(self._node.id, self._node.rsaKey.n, 
+      self._node.x, method, args)
 
     msgPrimitive = self._translator.toPrimitive(msg)
     encodedMsg = self._encoder.encode(msgPrimitive)
@@ -84,7 +86,8 @@ class TintangledProtocol(KademliaProtocol):
       df._rpcRawResponse = True
 
     # Set the RPC timeout timer
-    timeoutCall = reactor.callLater(constants.rpcTimeout, self._msgTimeout, msg.id) #IGNORE:E1101
+    timeoutCall = reactor.callLater(constants.rpcTimeout, 
+      self._msgTimeout, msg.id) #IGNORE:E1101
     # Transmit the data
     self._send(encodedMsg, msg.id, (contact.address, contact.port))
     self._sentMessages[msg.id] = (contact.id, df, timeoutCall)
@@ -133,7 +136,8 @@ class TintangledProtocol(KademliaProtocol):
     #  preffix differs in an appropriate amount of bits.
     if isinstance(message, msgtypes.RequestMessage):
       # This is an RPC method request
-      if util.sharesXBitPrefix(remoteContact.id, self._node.id, constants.NODE_ID_PREFIX_DIFFERS_BITS) == False:
+      if util.sharesXBitPrefix(remoteContact.id, self._node.id, 
+        constants.NODE_ID_PREFIX_DIFFERS_BITS) == False:
         self._node.addContact(remoteContact)
       self._handleRPC(remoteContact, message.id, message.request, message.args)
     elif isinstance(message, msgtypes.ResponseMessage):
