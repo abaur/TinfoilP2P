@@ -76,7 +76,7 @@ class Client:
   def _getUserPublicKey(self, userID):
     """Returns the public key corresponding to the specified userID, if any."""
     if userID == self.node.id:
-      return self.node.rsaKey.publicKey()
+      return self.node.rsaKey
     publicKeyID = ('%s:publickey' % (userID))
     # TODO(cskau): This is a defer !!
     publicKeyDefer = self.node.iterativeFindValue(publicKeyID)
@@ -122,7 +122,7 @@ class Client:
     latestID = ('%s:latest' % (self.node.id))
     latestDefer = self.node.publishData(latestID, newSequenceNumber)
     # store post key by sharing the post with ourself
-    self.share(postID, self.node.id)
+    self.share(newSequenceNumber, self.node.id)
 
   def _getSequenceNumber(self):
     """Return next, unused sequence number unique to this user."""
@@ -192,7 +192,7 @@ class Client:
     def _processSequenceNumber(result):
       if type(result) == dict:
         lastSequenceNumber = result[keyID]
-        for n in range(lastKnownSequenceNumber, lastSequenceNumber):
+        for n in range(lastKnownSequenceNumber, (lastSequenceNumber + 1)):
           # There isn't actually any post 0 (which is kinda stupid..)
           if n == 0:
             continue
@@ -210,12 +210,12 @@ class Client:
   def _signMessage(self, message):
     '''Signs the specified message using the node's private key.'''
     hashValue = Crypto.Hash.SHA.new(message).digest()
-    return self.rsaKey.sign(hashValue, '') # Extra parameter not relevant for RSA.
+    return self.node.rsaKey.sign(hashValue, '') # Extra parameter not relevant for RSA.
 
   def _verifyMessage(self, message, signature):
     '''Verify a message based on the specified signature.'''
     hashValue = Crypto.Hash.SHA.new(message).digest()
-    return rsaKey.verify(hashValue, signature)
+    return self.node.rsaKey.verify(hashValue, signature)
 
   ## ---- "Soft" API ----
 
