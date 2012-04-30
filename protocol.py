@@ -19,7 +19,7 @@ reactor = twisted.internet.reactor
 
 class TintangledProtocol(KademliaProtocol):
   def __init__(self, node, msgEncoder = encoding.Bencode(), 
-    msgTranslator = msgformat.DefaultFormat()):
+    msgTranslator = msgformat.TintangledDefaultFormat()):
         KademliaProtocol.__init__(self,node, msgEncoder, msgTranslator)
 
   def _verifyID(self, nodeID, x):
