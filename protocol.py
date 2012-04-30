@@ -35,14 +35,14 @@ class TintangledProtocol(KademliaProtocol):
   def _sendResponse(self, contact, rpcID, response):
     """ Send a RPC response to the specified contact"""
     msg = msgtypes.ResponseMessage(rpcID, self._node.id,
-      self._node.rsaKey.n, self._node.x, response)
+      self._node.rsaKey, self._node.x, response)
     msgPrimitive = self._translator.toPrimitive(msg)
     encodedMsg = self._encoder.encode(msgPrimitive)
     self._send(encodedMsg, rpcID, (contact.address, contact.port))
 
   def _sendError(self, contact, rpcID, exceptionType, exceptionMessage):
     """ Send an RPC error message to the specified contact"""
-    msg = msgtypes.ErrorMessage(rpcID, self._node.id,self._node.rsaKey.n, 
+    msg = msgtypes.ErrorMessage(rpcID, self._node.id,self._node.rsaKey, 
       self._node.x, exceptionType, exceptionMessage)
     msgPrimitive = self._translator.toPrimitive(msg)
     encodedMsg = self._encoder.encode(msgPrimitive)
@@ -125,9 +125,10 @@ class TintangledProtocol(KademliaProtocol):
 
     message = self._translator.fromPrimitive(msgPrimitive)
     remoteContact = Contact(message.nodeID, address[0], address[1], self)
-    if not self._verifyID(remoteContact.id, message.crypto_challenge_x):
-      print 'Id not verified'
+    if not self._verifyID(remoteContact.id, message.cryptoChallengeX):
       return
+
+
     # As written in s/kademlia the message is signed and actively valid, 
     #  if the sender address is valid and comes from a RPC response.
     # Actively valid sender addresses are immediately added to their 
