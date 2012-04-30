@@ -32,7 +32,7 @@ class Client:
     self.sequenceNumber = 0
     self.friends = set()
     # TODO(cskau): Retrieve these every time we re-join.
-    self.postKeys = {}
+    self.sharingKeys = {}
     self.postIDNameTuple = {}
 
   def join(self, knownNodes):
@@ -70,8 +70,10 @@ class Client:
         sharingKeys[resourceID][otherUserID])
     """
     sharingKeyID = ('%s:share:%s' % (resourceID, friendsID))
-    sharingKey = self._encryptForUser(self.postKeys[resourceID], friendsID)
-    self.node.publishData(sharingKeyID, sharingKey)
+    sharingKeyEncrypted = self._encryptForUser(
+        self.sharingKeys[resourceID],
+        friendsID)
+    self.node.publishData(sharingKeyID, sharingKeyEncrypted)
 
   def _encryptForUser(self, content, userID):
     """Encrypt some content asymetrically with user's public key."""
@@ -126,16 +128,16 @@ class Client:
     # Use sequence number as nonce - that way we dont need to include it
     nonce = util.int2bin(newSequenceNumber, nbytes = constants.NONCE_LENGTH)
     encryptedContent = self._encryptPost(postKey, nonce, content)
-    # We need to store post keys used so we can issue sharing keys later
-    # TODO(cskau): whenever we update this, we should store it securely in net
-    self.postKeys[newSequenceNumber] = postKey
-    postID = ('%s:post:%s' % (self.node.id, newSequenceNumber))
-    postDefer = self.node.publishData(postID, encryptedContent)
+    postName = ('%s:post:%s' % (self.node.id, newSequenceNumber))
+    postID = self.node.getNameID(postName)
+    # We need to remember post keys used so we can issue sharing keys later
+    self.sharingKeys[postID] = postKey
+    postDefer = self.node.publishData(postName, encryptedContent)
     # update our latest sequence number
-    latestID = ('%s:latest' % (self.node.id))
-    latestDefer = self.node.publishData(latestID, newSequenceNumber)
+    latestName = ('%s:latest' % (self.node.id))
+    latestDefer = self.node.publishData(latestName, newSequenceNumber)
     # store post key by sharing the post with ourself
-    self.share(newSequenceNumber, self.node.id)
+    self.share(postID, self.node.id)
 
   def _getSequenceNumber(self):
     """Return next, unused sequence number unique to this user."""
@@ -213,6 +215,15 @@ class Client:
           # ask network for updates
           self.node.iterativeFindValue(postID).addCallback(
               self._processUpdatesResult)
+          # ask for sharing keys too
+          sharingKeyName = ('%s:share:%s' % (postID, self.node.id))
+          sharingKeyID = self.node.getNameID(sharingKeyName)
+          def _processSharingKeyResult(result):
+            if type(result) == dict:
+              for r in result:
+                self.sharingKeys[postID] = self.node.rsaKey.decrypt(result[r])
+          self.node.iterativeFindValue(sharingKeyID).addCallback(
+              _processSharingKeyResult)
     self.node.iterativeFindValue(keyID).addCallback(_processSequenceNumber)
     # NOTE(cskau): it's all deferred so we can't do much here
     # TODO(cskau): maybe just return cache?
@@ -246,8 +257,17 @@ class Client:
       #  Note: unfortunaly we can't block and wait for updates, so make do
       self.getUpdates(f, lastKnownPost)
     for f in self.friends:
+      for k in self.postCache[f].keys()[-n:]:
+        postID = self.node.getNameID(('%s:post:%s' % (f, k)))
+        if postID in self.sharingKeys:
+          self.postCache[f][k].update({'key': self.sharingKeys[postID]})
+          self.postCache[f][k].update({'postp': 
+              self._decryptPost(
+                  self.sharingKeys[postID],
+                  util.int2bin(k, nbytes = constants.NONCE_LENGTH),
+                  self.postCache[f][k]['post'])})
       # get last n from this friend
-      digest[f] = sorted(self.postCache[f].items())[-n:]
+      digest[f] = self.postCache[f].items()[-n:][::-1]
     return digest
 
 

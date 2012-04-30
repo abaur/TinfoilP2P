@@ -41,6 +41,22 @@ class TinFront(twisted.web.resource.Resource):
     else:
       print(request.uri)
 
+  def getDigestRender(self, digest):
+    import urllib
+    result = ''
+    for friendsID in digest:
+      result += ('<li><h2>%s</h2></li>\n' % (util.bin2hex(friendsID)))
+      for postNumber, postDict in digest[friendsID]:
+        if 'postp' in postDict:
+          result += ('<li><p>%s: %s</p></li>\n' % (
+              postNumber,
+              urllib.unquote_plus(postDict['postp'])))
+        else:
+          result += ('<li><p>%s: <i>%s</i></p></li>\n' % (
+              postNumber,
+              util.bin2hex(postDict['post'])))
+    return result
+
   def render_GET(self, request):
     """Renders the result of the GET request."""
     self._handleRequest(request)
@@ -59,7 +75,7 @@ class TinFront(twisted.web.resource.Resource):
       <form action="/addfriend" method="get">
         <input type="text" name="friendsid" placeholder="Add friend by ID" />
       </form>''' % {
-        'digest': self.node.getDigest(),
+        'digest': self.getDigestRender(self.node.getDigest()),
         'id': util.bin2hex(self.node.node.id),
       })
 
