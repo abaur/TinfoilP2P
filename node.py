@@ -26,30 +26,15 @@ def rpcmethod(func):
   func.rpcmethod = True
   return func
 
-
-# note(purbak): hmm indenteringen ser lidt funky ud. fx. er alle funktioner der er
-# defineret efter _iterativeFind indenteret med 4 spaces mens _iterativeFind kun er
-# indenteret med 2. Derudover er der 4 linjers kode lige efter definitionen af
-# startIteration() som ser ud til at ligge udenfor alle scopes (burde det i så fald
-# ikke ligge et sted mere oplagt end mellem 2 funktioner).
-
-# NOTE(cskau): Det fald mig også for øje, men efter lidt studsen ser den nu
-#  god nok ud.
-# Det der sker er at der et funktioner defineret inden i methoden.
-# _iterativeFind indeholder en række lokale funktioner som kun er tilgængelig
-#  i dens eget scope.
-# Det du ser til sidst er de sidste fire linjer kode i _iterativeFind.
-# Denne kode kalder nu alle de ovenstående funktioner.
-# Det er absolut ikke kønt, men det er gyldigt.
-
 class TintangledNode(entangled.EntangledNode):
+
   def __init__(
       self, id = None, udpPort = 4000, dataStore = None, routingTable = None,
       networkProtocol = None):
     """ Initializes a TintangledNode."""
-    
+
     self.rsaKey = None
-    
+
     if id == None:
       id = self._generateRandomID()
 
@@ -61,12 +46,12 @@ class TintangledNode(entangled.EntangledNode):
 
   def _iterativeFind(self, key, startupShortlist=None, rpc='findNode'):
     """ The basic Kademlia iterative lookup operation (for nodes/values)
-    
+
     This builds a list of k "closest" contacts through iterative use of
     the "FIND_NODE" RPC, or if C{findValue} is set to C{True}, using the
     "FIND_VALUE" RPC, in which case the value (if found) may be returned
     instead of a list of contacts
-    
+
     @param key: the 160-bit key (i.e. the node or value ID) to search for
     @type key: str
     @param startupShortlist: A list of contacts to use as the starting
@@ -80,7 +65,7 @@ class TintangledNode(entangled.EntangledNode):
           other operations that piggy-back on the basic Kademlia
           lookup operation (Entangled's "delete" RPC, for instance).
     @type rpc: str
-    
+
     @return: If C{findValue} is C{True}, the algorithm will stop as soon
          as a data value for C{key} is found, and return a dictionary
          containing the key and the found value. Otherwise, it will
@@ -120,7 +105,7 @@ class TintangledNode(entangled.EntangledNode):
 
     def extendShortlist(responseTuple):
       """ @type responseMsg: kademlia.msgtypes.ResponseMessage """
-      # The "raw response" tuple contains the response message, and 
+      # The "raw response" tuple contains the response message, and
       #  the originating address info
       responseMsg = responseTuple[0]
       originAddress = responseTuple[1] # tuple: (ip adress, udp port)
@@ -176,7 +161,7 @@ class TintangledNode(entangled.EntangledNode):
               contactsGateheredFromNode.append(testContact)
         if len(contactsGateheredFromNode):
           contactsGateheredFromNode.sort(
-              lambda firstContact, secondContact, targetKey=key: 
+              lambda firstContact, secondContact, targetKey=key:
                   cmp(
                       self._routingTable.distance(firstContact.id, targetKey),
                       self._routingTable.distance(secondContact.id, targetKey)))
@@ -227,7 +212,7 @@ class TintangledNode(entangled.EntangledNode):
     def startIteration():
       """Starts contacting nodes."""
       contactedNow = 0
-      shortlist.sort(lambda firstContact, secondContact, targetKey=key: 
+      shortlist.sort(lambda firstContact, secondContact, targetKey=key:
           cmp(
               self._routingTable.distance(firstContact.id, targetKey),
               self._routingTable.distance(secondContact.id, targetKey)))
@@ -238,7 +223,7 @@ class TintangledNode(entangled.EntangledNode):
         contactedNow += 1
 
       checkIfWeAreDone()
-      
+
     outerDf = twisted.internet.defer.Deferred()
     # Start the iterations
     startIteration()
@@ -308,3 +293,4 @@ class TintangledNode(entangled.EntangledNode):
     print('store: "%s":"%s" (%s, %s)' % (key, value, originalPublisherID, age))
     entangled.EntangledNode.store(self, key, value, originalPublisherID, age, **kwargs)
 
+# end-of-node.py
