@@ -16,8 +16,6 @@ from node import TintangledNode
 import constants
 import util
 
-import binascii
-
 
 class Client:
   '''A TinFoil Net client
@@ -28,6 +26,8 @@ class Client:
     '''Initializes a Tinfoil Node.'''
     self.udpPort = udpPort
     self.postCache = {}
+    # Local store of public keys of other nodes in the network
+    self.keyCache = {}
     # TODO(cskau): we need to ask the network for last known sequence number
     self.sequenceNumber = 0
     self.friends = set()
@@ -48,8 +48,8 @@ class Client:
     """
     self.node = TintangledNode(udpPort = self.udpPort) # also generates the ID.
     self.node.joinNetwork(knownNodes)
-    print('Your ID is: %s   - Tell your friends!' % 
-        binascii.hexlify(self.node.id))
+    print('Your ID is: %s   - Tell your friends!' % self.node.id.encode('hex'))
+    self.keyCache[self.node.id] = self.node.rsaKey
     # Add ourself to our friends list, so we can see our own posts too..
     self.addFriend(self.node.id)
     twisted.internet.reactor.run()
@@ -77,12 +77,18 @@ class Client:
 
   def _getUserPublicKey(self, userID):
     """Returns the public key corresponding to the specified userID, if any."""
-    if userID == self.node.id:
-      return self.node.rsaKey
-    publicKeyID = ('%s:publickey' % (userID))
+    if userID in self.keyCache:
+      return self.keyCache[userID]
+    publicKeyName = ('%s:publickey' % (userID))
+    publicKeyID = self.node.getNameID(publicKeyName)
     # TODO(cskau): This is a defer !!
     publicKeyDefer = self.node.iterativeFindValue(publicKeyID)
-    return None
+    def _addPublicKeyToLocalCache(result):
+      if type(result) == dict:
+        for r in result:
+          self.keyCache[userID] = result[r]
+    publicKeyDefer.addCallback(_addPublicKeyToLocalCache)
+    return publicKeyDefer
 
   def _encryptKey(self, content, publicKey):
     """Encrypts content (sharing key) using the specified public key."""
@@ -113,7 +119,9 @@ class Client:
     """
     newSequenceNumber = self._getSequenceNumber()
     postKey = util.generateRandomString(constants.SYMMETRIC_KEY_LENGTH)
-    nonce = util.generateRandomString(constants.NONCE_LENGTH)
+    #nonce = util.generateRandomString(constants.NONCE_LENGTH)
+    # Use sequence number as nonce - that way we dont need to include it
+    nonce = util.int2bin(newSequenceNumber, nbytes = constants.NONCE_LENGTH)
     encryptedContent = self._encryptPost(postKey, nonce, content)
     # We need to store post keys used so we can issue sharing keys later
     # TODO(cskau): whenever we update this, we should store it securely in net
@@ -171,13 +179,12 @@ class Client:
   def _processUpdatesResult(self, result):
     """Process post updates when we get them as callbacks."""
     for resultKey in result:
-      print(resultKey)
       if type(resultKey) == entangled.kademlia.contact.Contact:
         print("WARN: key not found!")
         return
       postID = resultKey
       friendsID, n = self.postIDNameTuple[postID]
-      self.postCache[friendsID][n] = result[postID]
+      self.postCache[friendsID][n] = {'post': result[postID]}
 
   def getUpdates(self, friendsID, lastKnownSequenceNumber):
     """ Check for and fetch new updates on user(s)
@@ -188,7 +195,6 @@ class Client:
       latestPostID = hash(otherUserID + latestSequenceNumber)
       latestPost = get(latestPostID)
     """
-    delta = {}
     keyName = '%s:latest' % (friendsID)
     keyID = self.node.getNameID(keyName)
     def _processSequenceNumber(result):
@@ -207,7 +213,6 @@ class Client:
     self.node.iterativeFindValue(keyID).addCallback(_processSequenceNumber)
     # NOTE(cskau): it's all deferred so we can't do much here
     # TODO(cskau): maybe just return cache?
-    return delta
 
   def _signMessage(self, message):
     '''Signs the specified message using the node's private key.'''
@@ -230,16 +235,17 @@ class Client:
 
   def getDigest(self, n = 10):
     """Gets latest n updates from friends."""
-    digest = []
+    digest = {}
     for f in self.friends:
       # update post cache
       lastKnownPost = max([0] + self.postCache[f].keys())
       # Do eventual update of cache
       #  Note: unfortunaly we can't block and wait for updates, so make do
       self.getUpdates(f, lastKnownPost)
+    for f in self.friends:
       # get last n from this friend
-      digest.append(sorted(self.postCache[f].items())[-n:])
-    return sorted(digest)[-n:]
+      digest[f] = sorted(self.postCache[f].items())[-n:]
+    return digest
 
 
 if __name__ == '__main__':
