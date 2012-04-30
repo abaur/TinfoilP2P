@@ -27,12 +27,11 @@ class Client:
   def __init__(self, udpPort = 4000):
     '''Initializes a Tinfoil Node.'''
     self.udpPort = udpPort
+    self.postCache = {}
     # TODO(cskau): we need to ask the network for last known sequence number
     self.sequenceNumber = 0
     self.friends = set()
-    self.postCache = {}
-    # TODO(cskau): maybe securely store these in the network so we don't
-    #  lose them. Retrieve every time we join.
+    # TODO(cskau): Retrieve these every time we re-join.
     self.postKeys = {}
     self.postIDNameTuple = {}
 
@@ -50,7 +49,7 @@ class Client:
     self.node = TintangledNode(udpPort = self.udpPort) # also generates the ID.
     self.node.joinNetwork(knownNodes)
     print('Your ID is: %s   - Tell your friends!' % 
-            binascii.hexlify(self.node.id))
+        binascii.hexlify(self.node.id))
     twisted.internet.reactor.run()
 
   def share(self, resourceID, friendsID):
@@ -76,8 +75,12 @@ class Client:
 
   def _getUserPublicKey(self, userID):
     """Returns the public key corresponding to the specified userID, if any."""
+    if userID == self.node.id:
+      return self.node.rsaKey.publicKey()
     publicKeyID = ('%s:publickey' % (userID))
-    return self.node.iterativeFindValue(publicKeyID)
+    # TODO(cskau): This is a defer !!
+    publicKeyDefer = self.node.iterativeFindValue(publicKeyID)
+    return None
 
   def _encryptKey(self, content, publicKey):
     """Encrypts content (sharing key) using the specified public key."""
@@ -118,6 +121,8 @@ class Client:
     # update our latest sequence number
     latestID = ('%s:latest' % (self.node.id))
     latestDefer = self.node.publishData(latestID, newSequenceNumber)
+    # store post key by sharing the post with ourself
+    self.share(postID, self.node.id)
 
   def _getSequenceNumber(self):
     """Return next, unused sequence number unique to this user."""
