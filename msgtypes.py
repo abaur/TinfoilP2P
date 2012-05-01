@@ -29,7 +29,8 @@ class RequestMessage(Message):
     def stringToSign(self):
         #Args have some problems with encoding
         return "%s%s%s" % (self.request, 
-                [arg.encode("hex") for arg in self.args],
+                #self.args, ###TODO: fix error with args encoding
+                len(self.args),
                 Message.stringToSign(self))
 
 class ResponseMessage(Message):
