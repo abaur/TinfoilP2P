@@ -9,133 +9,55 @@
 
 import hashlib
 import random
-import util
-import constants
-    
-(
-    typeRequest, 
-    typeResponse, 
-    typeError,
-) = range(3)
-  
-(
-    headerType,
-    headerMsgID,
-    headerNodeID, 
-    headerCryptoChallengeX,
-    headerPublicKeyN,
-    headerPublicKeyE,
-    headerSignedValue, 
-    headerPayload, 
-    headerArgs,
-) = range(9)
 
 class Message(object):
-
     """ Base class for messages - all "unknown" messages use this class """
-    def __init__(self, rpcID = None, nodeID = None, rsaKey = None, cryptoChallengeX = None, primitives = None):
-        if primitives == None:
-            self.id = rpcID
-            self.nodeID = nodeID
-            self.publicKeyN = rsaKey.n
-            self.publicKeyE = rsaKey.e
-            self.cryptoChallengeX = cryptoChallengeX
-            self.signedValue = None
-        else:
-            self.fromPrimitives(primitives)
+    def __init__(self, rpcID, nodeID, rsaKey, cryptoChallengeX, signedValue = None):
+        self.id = rpcID
+        self.nodeID = nodeID
+        self.rsaKey = rsaKey
+        self.cryptoChallengeX = cryptoChallengeX
+        self.signedValue = signedValue
 
-    def fromPrimitives(self, primitives):
-        self.id = primitives[headerMsgID]
-        self.nodeID = primitives[headerNodeID]
-        self.cryptoChallengeX = primitives[headerCryptoChallengeX]
-        self.publicKeyN = primitives[headerPublicKeyN]
-        self.signedValue = primitives[headerSignedValue]
-        self.publicKeyE = long(primitives[headerPublicKeyE])
-
-    def toPrimitives(self):
-        msg = { headerMsgID:  self.id,
-                headerNodeID: self.nodeID,
-                headerCryptoChallengeX: self.cryptoChallengeX,
-                headerPublicKeyN: self.publicKeyN,
-                headerSignedValue: self.signedValue,
-                headerPublicKeyE: self.publicKeyE}
-        return msg
-
-    def stringSignatureToSign(self):
-        return "%s%s" % (self.nodeID, self.id)
+    def stringToSign(self):
+        return "%s" % (self.id)
 
 class RequestMessage(Message):
     """ Message containing an RPC request """
-    def __init__(self, nodeID = None, method = None, methodArgs = None, 
-        rsaKey = None, cryptoChallengeX = None, rpcID = None, primitives = None):
+    def __init__(self, nodeID, method, methodArgs, rsaKey, 
+        cryptoChallengeX, rpcID=None, signedValue = None):
         if rpcID == None:
             hash = hashlib.sha1()
             hash.update(str(random.getrandbits(255)))  
             rpcID = hash.digest()
+        Message.__init__(self, rpcID, nodeID, rsaKey, cryptoChallengeX, signedValue)
         self.request = method
         self.args = methodArgs
-        Message.__init__(self, rpcID, nodeID, rsaKey, cryptoChallengeX, primitives)
-
-    def stringSignatureToSign(self):
-        return "%s%s%s" % (Message.stringSignatureToSign(self), self.request, self.args)
-
-    def fromPrimitives(self, primitives):
-        Message.fromPrimitives(self,primitives)
-        self.request = primitives[headerPayload]
-        self.args = primitives[headerArgs]
-
-    def toPrimitives(self):
-        msg = Message.toPrimitives(self)
-        msg[headerType] = typeRequest
-        msg[headerPayload] = self.request
-        msg[headerArgs] = self.args
-        return msg
     
+    def stringToSign(self):
+        return "%s%s%s" % (self.request, self.args[0].encode("hex"), Message.stringToSign(self))
+
 class ResponseMessage(Message):
     """ Message containing the result from a successful RPC request """
-    def __init__(self, rpcID = None, nodeID = None, rsaKey = None, 
-        cryptoChallengeX = None , response = None, primitives = None):
+    def __init__(self, rpcID, nodeID, rsaKey, cryptoChallengeX, 
+            response, signedValue = None):
+        Message.__init__(self, rpcID, nodeID, rsaKey, cryptoChallengeX, signedValue)
         self.response = response
-        Message.__init__(self, rpcID, nodeID, rsaKey, cryptoChallengeX, primitives)
 
-    def stringSignatureToSign(self):
-        return "%s%s" % (Message.stringSignatureToSign(self), self.response)
-
-    def fromPrimitives(self, primitives):
-        Message.fromPrimitives(self,primitives)
-        self.response = msg[headerPayload]
-
-    def toPrimitives(self):
-        msg = Message.toPrimitives()
-        msg[headerType] = typeResponse
-        msg[headerPayload] = self.response
-        return msg
-
+    def stringToSign(self):
+        return "%s%s" % (self.response.encode("hex"), Message.stringToSign(self))
 
 class ErrorMessage(ResponseMessage):
     """ Message containing the error from an unsuccessful RPC request """
-    def __init__(self, rpcID = None, nodeID = None, rsaKey = None, cryptoChallengeX = None, 
-        exceptionType = None, errorMessage = None, primitives = None):
+    def __init__(self, rpcID, nodeID, rsaKey, cryptoChallengeX, 
+        exceptionType, errorMessage, signedValue = None):
+        ResponseMessage.__init__(self, rpcID, nodeID, rsaKey, 
+            cryptoChallengeX, errorMessage, signedValue)
         if isinstance(exceptionType, type):
             self.exceptionType = '%s.%s' % (exceptionType.__module__, 
                 exceptionType.__name__)
         else:
             self.exceptionType = exceptionType
-        self.errorMessage = errorMessage
-        ResponseMessage.__init__(self, rpcID, nodeID, rsaKey, 
-            cryptoChallengeX, errorMessage, primitives)
-
-    def stringSignatureToSign(self):
-        return "%s%s" % (Message.stringSignatureToSign(self), self.exceptionType)
-
-    def fromPrimitives(self, primitives):
-        Message.fromPrimitives(self,primitives)
-        self.exceptionType = primitives[headerPayload]
-        self.errorMessage = primitives[headerArgs]        
-
-    def toPrimitives(self):
-        msg = Message.toPrimitives(self)
-        msg[headerType] = typeError
-        msg[headerPayload] = self.exceptionType
-        msg[headerArgs] = self.errorMessage
-        return msg
+    
+    def stringToSign(self):
+        return "%s%s" % (self.exceptionType, ResponseMessage.stringToSign(self))

@@ -170,7 +170,6 @@ class TintangledNode(entangled.EntangledNode):
 
     def nodeFailedToRespond(failure, otherNodesToContact):
       """ @type failure: twisted.python.failure.Failure """
-      print failure
       failure.trap(entangled.kademlia.protocol.TimeoutError)
       deadContactID = failure.getErrorMessage()
       if len(otherNodesToContact):
@@ -205,7 +204,7 @@ class TintangledNode(entangled.EntangledNode):
         rpcMethod = getattr(nodeToContact, rpc)
         df = rpcMethod(key, rawResponse=True)
         df.addCallback(extendShortlist)
-        df.addErrback(nodeFailedToRespond, candidateNodesToContact)
+        df.addErrback(nodeFailedToRespond,candidateNodesToContact)
         df.addCallback(cancelActiveProbe, nodeToContact)
         alreadyContacted.append(nodeToContact.id)
 
@@ -276,7 +275,7 @@ class TintangledNode(entangled.EntangledNode):
 
   def _verifyMessage(self, message, signature, rsaKey = None):
     '''Verify a message based on the specified signature.'''
-    if not rsaKey:
+    if rsaKey is None:
       rsaKey = self.rsaKey
     hashValue = Crypto.Hash.SHA.new(message).digest()
     return rsaKey.verify(hashValue, signature)
@@ -289,7 +288,7 @@ class TintangledNode(entangled.EntangledNode):
     entangled.EntangledNode.addContact(self, contact)
 
   def publishData(self, name, data):
-    #print('publishData: "%s"' % (name))
+    #print('publishData: "%s":"%s"' % (name, data))
     entangled.EntangledNode.publishData(self, name, data)
 
   @rpcmethod
