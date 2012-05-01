@@ -228,16 +228,6 @@ class Client:
     # NOTE(cskau): it's all deferred so we can't do much here
     # TODO(cskau): maybe just return cache?
 
-  def _signMessage(self, message):
-    '''Signs the specified message using the node's private key.'''
-    hashValue = Crypto.Hash.SHA.new(message).digest()
-    return self.node.rsaKey.sign(hashValue, '') # Extra parameter not relevant for RSA.
-
-  def _verifyMessage(self, message, signature):
-    '''Verify a message based on the specified signature.'''
-    hashValue = Crypto.Hash.SHA.new(message).digest()
-    return self.node.rsaKey.verify(hashValue, signature)
-
   ## ---- "Soft" API ----
 
   def addFriend(self, friendsID):
