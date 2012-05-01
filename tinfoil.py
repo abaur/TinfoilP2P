@@ -16,6 +16,8 @@ from node import TintangledNode
 import constants
 import util
 
+import pickle
+
 
 class Client:
   '''A TinFoil Net client
@@ -53,8 +55,8 @@ class Client:
     # Add ourself to our friends list, so we can see our own posts too..
     self.addFriend(self.node.id)
     self.node.publishData(
-        self.node.id,
-        util.int2bin(self._getUserPublicKey(self.node.id).publickey().n))
+        ('%s:publickey' % (self.node.id)),
+        pickle.dumps(self._getUserPublicKey(self.node.id).publickey()))
     twisted.internet.reactor.run()
 
   def share(self, resourceID, friendsID):
@@ -73,14 +75,20 @@ class Client:
     sharingKeyEncrypted = self._encryptForUser(
         self.sharingKeys[resourceID],
         friendsID)
-    self.node.publishData(sharingKeyID, sharingKeyEncrypted)
+    # We might not have user's public key yet..
+    if sharingKeyEncrypted is not None:
+      self.node.publishData(sharingKeyID, sharingKeyEncrypted)
+    else:
+      print('Couldn\'t share. Key not found.')
 
-  def _encryptForUser(self, content, userID):
+  def _encryptForUser(self, content, userID, callback = None):
     """Encrypt some content asymetrically with user's public key."""
-    userKey = self._getUserPublicKey(userID)
+    userKey = self._getUserPublicKey(userID, callback)
+    if userKey is None:
+      return None
     return self._encryptKey(content, userKey)
 
-  def _getUserPublicKey(self, userID):
+  def _getUserPublicKey(self, userID, callback = None):
     """Returns the public key corresponding to the specified userID, if any."""
     if userID in self.keyCache:
       return self.keyCache[userID]
@@ -89,11 +97,15 @@ class Client:
     # TODO(cskau): This is a defer !!
     publicKeyDefer = self.node.iterativeFindValue(publicKeyID)
     def _addPublicKeyToLocalCache(result):
+      print('Public Key for ', util.bin2hex(userID))
+      print(result)
       if type(result) == dict:
         for r in result:
-          self.keyCache[userID] = result[r]
+          self.keyCache[userID] = pickle.loads(result[r])
     publicKeyDefer.addCallback(_addPublicKeyToLocalCache)
-    return publicKeyDefer
+    if callback is not None:
+      publicKeyDefer.addCallback(callback)
+    return None
 
   def _encryptKey(self, content, publicKey):
     """Encrypts content (sharing key) using the specified public key."""
@@ -189,7 +201,10 @@ class Client:
         return
       postID = resultKey
       friendsID, n = self.postIDNameTuple[postID]
-      self.postCache[friendsID][n] = {'post': result[postID]}
+      self.postCache[friendsID][n] = {
+        'post': result[postID],
+        'id': postID,
+      }
 
   def getUpdates(self, friendsID, lastKnownSequenceNumber):
     """ Check for and fetch new updates on user(s)
@@ -221,7 +236,8 @@ class Client:
           def _processSharingKeyResult(result):
             if type(result) == dict:
               for r in result:
-                self.sharingKeys[postID] = self.node.rsaKey.decrypt(result[r])
+                self.sharingKeys[postID] = self.node.rsaKey.decrypt(
+                    result[r][0])
           self.node.iterativeFindValue(sharingKeyID).addCallback(
               _processSharingKeyResult)
     self.node.iterativeFindValue(keyID).addCallback(_processSequenceNumber)
@@ -258,7 +274,7 @@ class Client:
       self.getUpdates(f, lastKnownPost)
     for f in self.friends:
       for k in self.postCache[f].keys()[-n:]:
-        postID = self.node.getNameID(('%s:post:%s' % (f, k)))
+        postID = self.postCache[f][k]['id']
         if postID in self.sharingKeys:
           self.postCache[f][k].update({'key': self.sharingKeys[postID]})
           self.postCache[f][k].update({'postp': 

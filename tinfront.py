@@ -37,7 +37,9 @@ class TinFront(twisted.web.resource.Resource):
         self.node.post(content)
     elif path == '/share':
       postID, friendsID = query.split('&')
-      self.node.share(postID[7:], friendsID[10:])
+      self.node.share(
+          util.hex2bin(postID[7:]),
+          util.hex2bin(friendsID[10:]))
     else:
       print(request.uri)
 
@@ -48,13 +50,15 @@ class TinFront(twisted.web.resource.Resource):
       result += ('<li><h2>%s</h2></li>\n' % (util.bin2hex(friendsID)))
       for postNumber, postDict in digest[friendsID]:
         if 'postp' in postDict:
-          result += ('<li><p>%s: %s</p></li>\n' % (
+          result += ('<li><p>%s: %s</p><small>%s</small></li>\n' % (
               postNumber,
-              urllib.unquote_plus(postDict['postp'])))
+              urllib.unquote_plus(postDict['postp']),
+              util.bin2hex(postDict['id'])))
         else:
-          result += ('<li><p>%s: <i>%s</i></p></li>\n' % (
+          result += ('<li><p>%s: <i>%s</i></p><small>%s</small></li>\n' % (
               postNumber,
-              util.bin2hex(postDict['post'])))
+              util.bin2hex(postDict['post']),
+              util.bin2hex(postDict['id'])))
     return result
 
   def render_GET(self, request):
@@ -63,7 +67,7 @@ class TinFront(twisted.web.resource.Resource):
     self.numberRequests += 1
     request.setHeader("content-type", "text/html")
     return (
-      '''<h1>Welcome to TinFoil Net</h1>
+      '''<h1>Welcome to <a href="/">TinFoil Net</a></h1>
       Your ID is: %(id)s
       <form action="/post" method="get">
         <input type="text" name="content" placeholder="What's on your mind?" />
@@ -74,7 +78,13 @@ class TinFront(twisted.web.resource.Resource):
       </ul>
       <form action="/addfriend" method="get">
         <input type="text" name="friendsid" placeholder="Add friend by ID" />
-      </form>''' % {
+      </form>
+      Share:
+      <form action="/share" method="get">
+        <input type="text" name="postid" placeholder="Post's ID" />
+        <input type="text" name="friendsid" placeholder="Friend's ID" />
+      </form>
+      ''' % {
         'digest': self.getDigestRender(self.node.getDigest()),
         'id': util.bin2hex(self.node.node.id),
       })
