@@ -77,7 +77,7 @@ class TintangledProtocol(KademliaProtocol):
                  C{ErrorMessage}).
     @rtype: twisted.internet.defer.Deferred
         """
-    msg = msgtypes.RequestMessage(nodeID = self._node.id, method = method, 
+    msg = msgtypes.RequestMessage(nodeID = self._node.id, method = method,
         methodArgs = args, rsaKey = self._node.rsaKey, 
         cryptoChallengeX = self._node.x)
     msg.signedValue = self._node._signMessage(msg.stringToSign())

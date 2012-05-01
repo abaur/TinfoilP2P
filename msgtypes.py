@@ -7,8 +7,7 @@
 # The docstrings in this module contain epytext markup; API documentation
 # may be created by processing this file with epydoc: http://epydoc.sf.net
 
-import hashlib
-import random
+import util
 
 class Message(object):
     """ Base class for messages - all "unknown" messages use this class """
@@ -28,16 +27,16 @@ class RequestMessage(Message):
     def __init__(self, nodeID, method, methodArgs, rsaKey, 
         cryptoChallengeX, rpcID=None, signedValue = None):
         if rpcID == None:
-            hash = hashlib.sha1()
-            hash.update(str(random.getrandbits(255)))  
-            rpcID = hash.digest()
+            rpcID = util.generateRandomString(160)
         Message.__init__(self, rpcID, nodeID, rsaKey, cryptoChallengeX, 
                 signedValue)
         self.request = method
         self.args = methodArgs
     
     def stringToSign(self):
-        return "%s%s%s" % (self.request, self.args[0].encode("hex"),
+        print "args: %s" % self.args
+        return "%s%s%s" % (self.request, 
+                [arg.encode("hex") for arg in self.args],
                 Message.stringToSign(self))
 
 class ResponseMessage(Message):
