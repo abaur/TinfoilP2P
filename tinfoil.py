@@ -56,16 +56,16 @@ class Client:
     rsaKey = None
     x = None
 
-    if os.path.exists(constants.PATH_TO_ID):
-      fID = open(constants.PATH_TO_ID, 'r')
+    if os.path.exists(constants.PATH_TO_ID % self.udpPort):
+      fID = open(constants.PATH_TO_ID % self.udpPort, 'r')
       id = fID.read()
       fID.close()
 
-      fKey = open(constants.PATH_TO_RSAKEY, 'r')
+      fKey = open(constants.PATH_TO_RSAKEY % self.udpPort, 'r')
       rsaKey = pickle.load(fKey)
       fKey.close()
 
-      fX = open(constants.PATH_TO_X, 'r')
+      fX = open(constants.PATH_TO_X % self.udpPort, 'r')
       x = long(fX.read())
       fX.close()
 
@@ -75,15 +75,15 @@ class Client:
     # Save node data to file if node is new.
     if id == None:
       # Save ID, RSAKey and X to file.
-      fID = open(constants.PATH_TO_ID, 'w')
+      fID = open(constants.PATH_TO_ID % self.udpPort, 'w')
       fID.write(self.node.id)
       fID.close()
 
-      fKey = open(constants.PATH_TO_RSAKEY, 'w')
+      fKey = open(constants.PATH_TO_RSAKEY % self.udpPort, 'w')
       pickle.dump(self.node.rsaKey, fKey)
       fKey.close()
 
-      fX = open(constants.PATH_TO_X, 'w')
+      fX = open(constants.PATH_TO_X % self.udpPort, 'w')
       fX.write(str(self.node.x))
       fX.close()
     else:

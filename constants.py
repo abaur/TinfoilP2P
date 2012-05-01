@@ -2,10 +2,10 @@
 # coding: UTF-8
 
 # Used to store node authentication data.
-PATH_TO_TMP = '/tmp'
-PATH_TO_ID = PATH_TO_TMP + '/tinfoil_id.tmp'
-PATH_TO_RSAKEY = PATH_TO_TMP + '/tinfoil_rsakey.tmp'
-PATH_TO_X = PATH_TO_TMP + '/tinfoil_x.tmp'
+PATH_TO_TMP = '/tmp/node%s'
+PATH_TO_ID = PATH_TO_TMP + '_tinfoil_id.tmp'
+PATH_TO_RSAKEY = PATH_TO_TMP + '_tinfoil_rsakey.tmp'
+PATH_TO_X = PATH_TO_TMP + '_tinfoil_x.tmp'
 
 RSA_BITS = 2048
 ID_LENGTH = 20 # in bytes
