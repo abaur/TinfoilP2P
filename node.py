@@ -268,8 +268,6 @@ class TintangledNode(entangled.EntangledNode):
     h.update(name)
     return h.digest()
 
-
-
   # -*- Logging Decorators -*-
 
   def addContact(self, contact):

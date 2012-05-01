@@ -16,6 +16,8 @@ import constants
 import util
 
 import binascii
+import os
+import pickle
 
 class Client:
   '''A TinFoil Net client
@@ -44,7 +46,48 @@ class Client:
     OR if the user has already created his ID in the past.
     - use the previously established private key to authenticate in network.
     """
-    self.node = TintangledNode(udpPort = self.udpPort) # also generates the ID.
+
+    # Check to see if we have already been authenticated with the network.
+    id = None
+    rsaKey = None
+    x = None
+
+    if os.path.exists(constants.PATH_TO_ID):
+      fID = open(constants.PATH_TO_ID, 'r')
+      id = fID.read()
+      fID.close()
+
+      fKey = open(constants.PATH_TO_RSAKEY, 'r')
+      rsaKey = pickle.load(fKey)
+      fKey.close()
+
+      fX = open(constants.PATH_TO_X, 'r')
+      x = long(fX.read())
+      fX.close()
+
+    # Generate new node from scratch or based on already known values.
+    self.node = TintangledNode(id = id, udpPort = self.udpPort)
+
+    # Save node data to file if node is new.
+    if id == None:
+      # Save ID, RSAKey and X to file.
+      fID = open(constants.PATH_TO_ID, 'w')
+      fID.write(self.node.id)
+      fID.close()
+
+      fKey = open(constants.PATH_TO_RSAKEY, 'w')
+      pickle.dump(self.node.rsaKey, fKey)
+      fKey.close()
+
+      fX = open(constants.PATH_TO_X, 'w')
+      fX.write(str(self.node.x))
+      fX.close()
+    else:
+      self.node.rsaKey = rsaKey
+      self.node.x = x
+      # Alternative: add rsaKey and x as optional parameters in
+      # TintangledNode.__init__.
+
     self.node.joinNetwork(knownNodes)
     print('Your ID is: %s   - Tell your friends!' %
         binascii.hexlify(self.node.id))
@@ -243,7 +286,8 @@ class Client:
 if __name__ == '__main__':
   import sys
   if len(sys.argv) < 2:
-    print('Usage:\n%s UDP_PORT [KNOWN_NODE_IP KNOWN_NODE_PORT]' % sys.argv[0])
+    print('Usage:\n%s UDP_PORT [KNOWN_NODE_IP KNOWN_NODE_PORT] NODE_ID' %
+          sys.argv[0])
     sys.exit(1)
   else:
     try:
@@ -251,10 +295,11 @@ if __name__ == '__main__':
     except ValueError:
       print('\nUDP_PORT must be an integer value.\n')
       print(
-          'Usage:\n%s UDP_PORT [KNOWN_NODE_IP KNOWN_NODE_PORT]' % sys.argv[0])
+          'Usage:\n%s UDP_PORT [KNOWN_NODE_IP KNOWN_NODE_PORT] NODE_ID' %
+          sys.argv[0])
       sys.exit(1)
 
-  if len(sys.argv) == 4:
+  if len(sys.argv) >= 4:
     knownNodes = [(sys.argv[2], int(sys.argv[3]))]
   else:
     knownNodes = None
