@@ -103,7 +103,7 @@ class TintangledNode(entangled.EntangledNode):
     activeContacts = []
     findValueResult = {}
 
-    def extendShortlist(responseTuple):
+    def nodeResponds(responseTuple):
       """ @type responseMsg: kademlia.msgtypes.ResponseMessage """
       # The "raw response" tuple contains the response message, and
       #  the originating address info
@@ -149,23 +149,24 @@ class TintangledNode(entangled.EntangledNode):
           else:
             findValueResult['closestNodeNoValue'] = aContact
         contactsGateheredFromNode = []
-
-        for contactTriple in result:
-          if isinstance(contactTriple, (list, tuple)) and len(contactTriple) == 3:
-            testContact = entangled.kademlia.contact.Contact(
-                contactTriple[0],
-                contactTriple[1],
-                contactTriple[2],
-                self._protocol)
-            if testContact not in alreadyContacted:
-              contactsGateheredFromNode.append(testContact)
-        if len(contactsGateheredFromNode):
-          contactsGateheredFromNode.sort(
-              lambda firstContact, secondContact, targetKey=key:
-                  cmp(
-                      self._routingTable.distance(firstContact.id, targetKey),
-                      self._routingTable.distance(secondContact.id, targetKey)))
-          contactNode(contactsGateheredFromNode.pop(), contactsGateheredFromNode)
+        #This node can't provide us with better results then return
+        if result is not None:
+          for contactTriple in result:
+            if isinstance(contactTriple, (list, tuple)) and len(contactTriple) == 3:
+              testContact = entangled.kademlia.contact.Contact(
+                  contactTriple[0],
+                  contactTriple[1],
+                  contactTriple[2],
+                  self._protocol)
+              if testContact not in alreadyContacted:
+                contactsGateheredFromNode.append(testContact)
+          if len(contactsGateheredFromNode):
+            contactsGateheredFromNode.sort(
+                lambda firstContact, secondContact, targetKey=key:
+                    cmp(
+                        self._routingTable.distance(firstContact.id, targetKey),
+                        self._routingTable.distance(secondContact.id, targetKey)))
+            contactNode(contactsGateheredFromNode.pop(), contactsGateheredFromNode)
       return responseMsg.nodeID
 
     def nodeFailedToRespond(failure, otherNodesToContact):
@@ -203,10 +204,12 @@ class TintangledNode(entangled.EntangledNode):
         activeProbes.append(nodeToContact.id)
         rpcMethod = getattr(nodeToContact, rpc)
         df = rpcMethod(key, rawResponse=True)
-        df.addCallback(extendShortlist)
-        df.addErrback(nodeFailedToRespond,candidateNodesToContact)
+        df.addCallback(nodeResponds)
+        df.addErrback(nodeFailedToRespond, candidateNodesToContact)
         df.addCallback(cancelActiveProbe, nodeToContact)
         alreadyContacted.append(nodeToContact.id)
+        return True
+      return False
 
     # Send parallel, asynchronous FIND_NODE RPCs to the shortlist of contacts
     def startIteration():
@@ -219,8 +222,8 @@ class TintangledNode(entangled.EntangledNode):
       # Store the current shortList length before contacting other nodes
       while (contactedNow < entangled.kademlia.constants.alpha) and len(shortlist):
         contact = shortlist.pop()
-        contactNode(contact, shortlist)
-        contactedNow += 1
+        if contactNode(contact, shortlist):
+          contactedNow += 1
 
       checkIfWeAreDone()
 

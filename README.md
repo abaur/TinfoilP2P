@@ -19,6 +19,6 @@ doom).
 ## Todo
 
 - Methods
-  	- Sign messages exchanged (rpcs)
+  - Make sibling list as described in s/kademlia section 4.2
 	- Cache messages or status updates
 	- Make replication management like PASTRY (like Pastry?)
