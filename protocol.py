@@ -36,16 +36,16 @@ class TintangledProtocol(KademliaProtocol):
     """ Send a RPC response to the specified contact"""
     msg = msgtypes.ResponseMessage(rpcID, self._node.id,
       self._node.rsaKey, self._node.x, response)
-    msg.signedValue = self._node._signMessage(msg.stringToSign())
+    msg.signedValue = self._node._signMessage("")
     msgPrimitive = self._translator.toPrimitive(msg)
     encodedMsg = self._encoder.encode(msgPrimitive)
     self._send(encodedMsg, rpcID, (contact.address, contact.port))
 
   def _sendError(self, contact, rpcID, exceptionType, exceptionMessage):
     """ Send an RPC error message to the specified contact"""
-    msg = msgtypes.ErrorMessage(rpcID, self._node.id,self._node.rsaKey, 
+    msg = msgtypes.ErrorMessage(rpcID, self._node.id, self._node.rsaKey, 
       self._node.x, exceptionType, exceptionMessage)
-    msg.signedValue = self._node._signMessage(msg.stringToSign())
+    msg.signedValue = self._node._signMessage("")
     msgPrimitive = self._translator.toPrimitive(msg)
     encodedMsg = self._encoder.encode(msgPrimitive)
     self._send(encodedMsg, rpcID, (contact.address, contact.port))
@@ -77,10 +77,9 @@ class TintangledProtocol(KademliaProtocol):
                  C{ErrorMessage}).
     @rtype: twisted.internet.defer.Deferred
         """
-    msg = msgtypes.RequestMessage(nodeID = self._node.id, method = method, 
-        methodArgs = args, rsaKey = self._node.rsaKey, 
-        cryptoChallengeX = self._node.x)
-    msg.signedValue = self._node._signMessage(msg.stringToSign())
+    msg = msgtypes.RequestMessage(self._node.id, method, args, 
+        self._node.rsaKey, self._node.x)
+    msg.signedValue = self._node._signMessage("")
 
     msgPrimitive = self._translator.toPrimitive(msg)
     encodedMsg = self._encoder.encode(msgPrimitive)
@@ -126,16 +125,18 @@ class TintangledProtocol(KademliaProtocol):
       # We received some rubbish here
       return
 
-
     message = self._translator.fromPrimitive(msgPrimitive)
     remoteContact = Contact(message.nodeID, address[0], address[1], self)
-    if not self._verifyID(remoteContact.id, message.cryptoChallengeX):
-      print 'Id not verified - rejects RPC'
-      return
 
-    if not self._node._verifyMessage(message.stringToSign(), message.signedValue, message.rsaKey):
-      print 'Did not verify message - rejects RPC'
+    if not self._verifyID(remoteContact.id, message.cryptoChallengeX):
+      print '####################### Did not verify correctly'
       return
+    #rsaKey = Crypto.PublicKey.RSA.construct((message.publicKeyN,message.publicKeyE))
+    #if not self._node._verifyMessage("", message.signedValue, rsaKey):
+    #  print '##################### Did not verify correctly'
+    #  return
+    
+    print '####################### Did verify correctly'
     # As written in s/kademlia the message is signed and actively valid, 
     #  if the sender address is valid and comes from a RPC response.
     # Actively valid sender addresses are immediately added to their 
@@ -143,16 +144,18 @@ class TintangledProtocol(KademliaProtocol):
     # Valid sender addresses are only added to a bucket if the nodeId 
     #  preffix differs in an appropriate amount of bits.
     if isinstance(message, msgtypes.RequestMessage):
+      print 'Request %s' % message.id
       # This is an RPC method request
-      if util.sharesXBitPrefix(remoteContact.id, self._node.id, 
+      if util.sharesXBitPrefix(remoteContact.id, self._node.id,
         constants.NODE_ID_PREFIX_DIFFERS_BITS) == False:
         self._node.addContact(remoteContact)
       self._handleRPC(remoteContact, message.id, message.request, message.args)
+
     elif isinstance(message, msgtypes.ResponseMessage):
       # Find the message that triggered this response
       # Refresh the remote node's details in the local node's k-buckets
       self._node.addContact(remoteContact)
-
+      print 'ResponseMessage %s' % message.id
       if self._sentMessages.has_key(message.id):
           # Cancel timeout timer for this RPC
           df, timeoutCall = self._sentMessages[message.id][1:3]
@@ -164,6 +167,7 @@ class TintangledProtocol(KademliaProtocol):
             #  originating address be returned; do not interpret it.
             df.callback((message, address))
           elif isinstance(message, msgtypes.ErrorMessage):
+
             # The RPC request raised a remote exception; raise it locally
             if message.exceptionType.startswith('exceptions.'):
               exceptionClassName = message.exceptionType[11:]
