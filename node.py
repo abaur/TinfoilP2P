@@ -280,7 +280,6 @@ class TintangledNode(entangled.EntangledNode):
     hashValue = Crypto.Hash.SHA.new(message).digest()
     return rsaKey.verify(hashValue, signature)
 
-
   # -*- Logging Decorators -*-
 
   def addContact(self, contact):

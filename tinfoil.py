@@ -16,6 +16,10 @@ from node import TintangledNode
 import constants
 import util
 
+import binascii
+import os
+import pickle
+
 
 class Client:
   '''A TinFoil Net client
@@ -46,15 +50,56 @@ class Client:
     OR if the user has already created his ID in the past.
     - use the previously established private key to authenticate in network.
     """
-    self.node = TintangledNode(udpPort = self.udpPort) # also generates the ID.
+
+    # Check to see if we have already been authenticated with the network.
+    id = None
+    rsaKey = None
+    x = None
+
+    if os.path.exists(constants.PATH_TO_ID):
+      fID = open(constants.PATH_TO_ID, 'r')
+      id = fID.read()
+      fID.close()
+
+      fKey = open(constants.PATH_TO_RSAKEY, 'r')
+      rsaKey = pickle.load(fKey)
+      fKey.close()
+
+      fX = open(constants.PATH_TO_X, 'r')
+      x = long(fX.read())
+      fX.close()
+
+    # Generate new node from scratch or based on already known values.
+    self.node = TintangledNode(id = id, udpPort = self.udpPort)
+
+    # Save node data to file if node is new.
+    if id == None:
+      # Save ID, RSAKey and X to file.
+      fID = open(constants.PATH_TO_ID, 'w')
+      fID.write(self.node.id)
+      fID.close()
+
+      fKey = open(constants.PATH_TO_RSAKEY, 'w')
+      pickle.dump(self.node.rsaKey, fKey)
+      fKey.close()
+
+      fX = open(constants.PATH_TO_X, 'w')
+      fX.write(str(self.node.x))
+      fX.close()
+    else:
+      self.node.rsaKey = rsaKey
+      self.node.x = x
+      # Alternative: add rsaKey and x as optional parameters in
+      # TintangledNode.__init__.
+
     self.node.joinNetwork(knownNodes)
     print('Your ID is: %s   - Tell your friends!' % self.node.id.encode('hex'))
     self.keyCache[self.node.id] = self.node.rsaKey
     # Add ourself to our friends list, so we can see our own posts too..
     self.addFriend(self.node.id)
     self.node.publishData(
-        self.node.id,
-        util.int2bin(self._getUserPublicKey(self.node.id).publickey().n))
+        ('%s:publickey' % (self.node.id)),
+        pickle.dumps(self._getUserPublicKey(self.node.id).publickey()))
     twisted.internet.reactor.run()
 
   def share(self, resourceID, friendsID):
@@ -73,14 +118,20 @@ class Client:
     sharingKeyEncrypted = self._encryptForUser(
         self.sharingKeys[resourceID],
         friendsID)
-    self.node.publishData(sharingKeyID, sharingKeyEncrypted)
+    # We might not have user's public key yet..
+    if sharingKeyEncrypted is not None:
+      self.node.publishData(sharingKeyID, sharingKeyEncrypted)
+    else:
+      print('Couldn\'t share. Key not found.')
 
-  def _encryptForUser(self, content, userID):
+  def _encryptForUser(self, content, userID, callback = None):
     """Encrypt some content asymetrically with user's public key."""
-    userKey = self._getUserPublicKey(userID)
+    userKey = self._getUserPublicKey(userID, callback)
+    if userKey is None:
+      return None
     return self._encryptKey(content, userKey)
 
-  def _getUserPublicKey(self, userID):
+  def _getUserPublicKey(self, userID, callback = None):
     """Returns the public key corresponding to the specified userID, if any."""
     if userID in self.keyCache:
       return self.keyCache[userID]
@@ -91,9 +142,11 @@ class Client:
     def _addPublicKeyToLocalCache(result):
       if type(result) == dict:
         for r in result:
-          self.keyCache[userID] = result[r]
+          self.keyCache[userID] = pickle.loads(result[r])
     publicKeyDefer.addCallback(_addPublicKeyToLocalCache)
-    return publicKeyDefer
+    if callback is not None:
+      publicKeyDefer.addCallback(callback)
+    return None
 
   def _encryptKey(self, content, publicKey):
     """Encrypts content (sharing key) using the specified public key."""
@@ -189,7 +242,10 @@ class Client:
         return
       postID = resultKey
       friendsID, n = self.postIDNameTuple[postID]
-      self.postCache[friendsID][n] = {'post': result[postID]}
+      self.postCache[friendsID][n] = {
+        'post': result[postID],
+        'id': postID,
+      }
 
   def getUpdates(self, friendsID, lastKnownSequenceNumber):
     """ Check for and fetch new updates on user(s)
@@ -221,7 +277,8 @@ class Client:
           def _processSharingKeyResult(result):
             if type(result) == dict:
               for r in result:
-                self.sharingKeys[postID] = self.node.rsaKey.decrypt(result[r])
+                self.sharingKeys[postID] = self.node.rsaKey.decrypt(
+                    result[r][0])
           self.node.iterativeFindValue(sharingKeyID).addCallback(
               _processSharingKeyResult)
     self.node.iterativeFindValue(keyID).addCallback(_processSequenceNumber)
@@ -248,10 +305,10 @@ class Client:
       self.getUpdates(f, lastKnownPost)
     for f in self.friends:
       for k in self.postCache[f].keys()[-n:]:
-        postID = self.node.getNameID(('%s:post:%s' % (f, k)))
+        postID = self.postCache[f][k]['id']
         if postID in self.sharingKeys:
           self.postCache[f][k].update({'key': self.sharingKeys[postID]})
-          self.postCache[f][k].update({'postp': 
+          self.postCache[f][k].update({'postp':
               self._decryptPost(
                   self.sharingKeys[postID],
                   util.int2bin(k, nbytes = constants.NONCE_LENGTH),
@@ -264,7 +321,8 @@ class Client:
 if __name__ == '__main__':
   import sys
   if len(sys.argv) < 2:
-    print('Usage:\n%s UDP_PORT [KNOWN_NODE_IP KNOWN_NODE_PORT]' % sys.argv[0])
+    print('Usage:\n%s UDP_PORT [KNOWN_NODE_IP KNOWN_NODE_PORT] NODE_ID' %
+          sys.argv[0])
     sys.exit(1)
   else:
     try:
@@ -272,10 +330,11 @@ if __name__ == '__main__':
     except ValueError:
       print('\nUDP_PORT must be an integer value.\n')
       print(
-          'Usage:\n%s UDP_PORT [KNOWN_NODE_IP KNOWN_NODE_PORT]' % sys.argv[0])
+          'Usage:\n%s UDP_PORT [KNOWN_NODE_IP KNOWN_NODE_PORT] NODE_ID' %
+          sys.argv[0])
       sys.exit(1)
 
-  if len(sys.argv) == 4:
+  if len(sys.argv) >= 4:
     knownNodes = [(sys.argv[2], int(sys.argv[3]))]
   else:
     knownNodes = None
@@ -290,4 +349,3 @@ if __name__ == '__main__':
   print('Front-end running at http://localhost:%i' % httpPort)
 
   client.join(knownNodes)
-
