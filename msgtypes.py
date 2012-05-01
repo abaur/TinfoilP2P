@@ -1,11 +1,4 @@
 #!/usr/bin/env python
-#
-# This library is free software, distributed under the terms of
-# the GNU Lesser General Public License Version 3, or any later version.
-# See the COPYING file included in this archive
-#
-# The docstrings in this module contain epytext markup; API documentation
-# may be created by processing this file with epydoc: http://epydoc.sf.net
 
 import util
 
@@ -34,7 +27,7 @@ class RequestMessage(Message):
         self.args = methodArgs
     
     def stringToSign(self):
-        print "args: %s" % self.args
+        #Args have some problems with encoding
         return "%s%s%s" % (self.request, 
                 [arg.encode("hex") for arg in self.args],
                 Message.stringToSign(self))
@@ -48,6 +41,7 @@ class ResponseMessage(Message):
         self.response = response
 
     def stringToSign(self):
+        #Response does also have problems with the encoding
         return "%s%s" % (self.response.encode("hex"), 
                 Message.stringToSign(self))
 
