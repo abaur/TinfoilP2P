@@ -2,6 +2,7 @@
 
 import msgtypes
 from entangled.kademlia.msgformat import MessageTranslator
+import util
 import Crypto
 class TintangledDefaultFormat(MessageTranslator):
   """ The default on-the-wire message format for this library """
@@ -28,9 +29,9 @@ class TintangledDefaultFormat(MessageTranslator):
     
     msgType = msgPrimitive[self.headerType]
 
-    rsaKey = Crypto.PublicKey.RSA.construct((
+    rsaKey = util.constructPublicRSAKey(
         msgPrimitive[self.headerPublicKeyN], 
-        long(msgPrimitive[self.headerPublicKeyE])))
+        long(msgPrimitive[self.headerPublicKeyE]))
 
     if msgType == self.typeRequest:
       msg = msgtypes.RequestMessage(nodeID = msgPrimitive[self.headerNodeID],

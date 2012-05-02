@@ -128,6 +128,7 @@ class TintangledProtocol(KademliaProtocol):
 
     message = self._translator.fromPrimitive(msgPrimitive)
     remoteContact = Contact(message.nodeID, address[0], address[1], self)
+    remoteContact.rsaKey = message.rsaKey
     if not self._verifyID(remoteContact.id, message.cryptoChallengeX):
       print 'Id not verified - rejects RPC'
       return

@@ -30,8 +30,6 @@ class Client:
     '''Initializes a Tinfoil Node.'''
     self.udpPort = udpPort
     self.postCache = {}
-    # Local store of public keys of other nodes in the network
-    self.keyCache = {}
     # TODO(cskau): we need to ask the network for last known sequence number
     self.sequenceNumber = 0
     self.friends = set()
@@ -50,7 +48,6 @@ class Client:
     OR if the user has already created his ID in the past.
     - use the previously established private key to authenticate in network.
     """
-
     # Check to see if we have already been authenticated with the network.
     id = None
     rsaKey = None
@@ -71,7 +68,7 @@ class Client:
 
     # Generate new node from scratch or based on already known values.
     self.node = TintangledNode(id = id, udpPort = self.udpPort)
-
+    
     # Save node data to file if node is new.
     if id == None:
       # Save ID, RSAKey and X to file.
@@ -94,7 +91,7 @@ class Client:
 
     self.node.joinNetwork(knownNodes)
     print('Your ID is: %s   - Tell your friends!' % self.node.id.encode('hex'))
-    self.keyCache[self.node.id] = self.node.rsaKey
+    self.node.keyCache[self.node.id] = self.node.rsaKey
     # Add ourself to our friends list, so we can see our own posts too..
     self.addFriend(self.node.id)
     self.node.publishData(
@@ -133,8 +130,8 @@ class Client:
 
   def _getUserPublicKey(self, userID, callback = None):
     """Returns the public key corresponding to the specified userID, if any."""
-    if userID in self.keyCache:
-      return self.keyCache[userID]
+    if userID in self.node.keyCache:
+      return self.node.keyCache[userID]
     publicKeyName = ('%s:publickey' % (userID))
     publicKeyID = self.node.getNameID(publicKeyName)
     # TODO(cskau): This is a defer !!
@@ -142,7 +139,7 @@ class Client:
     def _addPublicKeyToLocalCache(result):
       if type(result) == dict:
         for r in result:
-          self.keyCache[userID] = pickle.loads(result[r])
+          self.node.keyCache[userID] = pickle.loads(result[r])
     publicKeyDefer.addCallback(_addPublicKeyToLocalCache)
     if callback is not None:
       publicKeyDefer.addCallback(callback)

@@ -32,7 +32,7 @@ class TintangledNode(entangled.EntangledNode):
       self, id = None, udpPort = 4000, dataStore = None, routingTable = None,
       networkProtocol = None):
     """ Initializes a TintangledNode."""
-
+    self.keyCache = {}
     self.rsaKey = None
 
     if id == None:
@@ -287,6 +287,7 @@ class TintangledNode(entangled.EntangledNode):
 
   def addContact(self, contact):
     #print('I : %s adds: "%s"' % (binascii.hexlify(self.id), binascii.hexlify(contact.id)))
+    self.keyCache[contact.id] = contact.rsaKey
     entangled.EntangledNode.addContact(self, contact)
 
   def publishData(self, name, data):
