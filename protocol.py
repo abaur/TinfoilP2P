@@ -126,7 +126,6 @@ class TintangledProtocol(KademliaProtocol):
       # We received some rubbish here
       return
 
-
     message = self._translator.fromPrimitive(msgPrimitive)
     remoteContact = Contact(message.nodeID, address[0], address[1], self)
     if not self._verifyID(remoteContact.id, message.cryptoChallengeX):

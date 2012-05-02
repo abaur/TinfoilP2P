@@ -35,7 +35,7 @@ class TintangledDefaultFormat(MessageTranslator):
     if msgType == self.typeRequest:
       msg = msgtypes.RequestMessage(nodeID = msgPrimitive[self.headerNodeID],
         method = msgPrimitive[self.headerPayload], 
-        methodArgs = msgPrimitive[self.headerArgs],
+        methodArgs = [str(arg).decode("hex") for arg in msgPrimitive[self.headerArgs]],
         rsaKey = rsaKey,
         cryptoChallengeX = msgPrimitive[self.headerCryptoChallengeX], 
         rpcID = msgPrimitive[self.headerMsgID],
@@ -74,7 +74,7 @@ class TintangledDefaultFormat(MessageTranslator):
     if isinstance(message, msgtypes.RequestMessage):
       msg[self.headerType] = self.typeRequest
       msg[self.headerPayload] = message.request
-      msg[self.headerArgs] = message.args
+      msg[self.headerArgs] = [str(arg).encode("hex") for arg in message.args]
     elif isinstance(message, msgtypes.ErrorMessage):
       msg[self.headerType] = self.typeError
       msg[self.headerPayload] = message.exceptionType
