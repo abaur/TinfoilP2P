@@ -5,9 +5,6 @@
 import Crypto.Random
 import constants
 
-def constructPublicRSAKey(n, e):
-  return Crypto.PublicKey.RSA.construct((n, e))
-
 def sharesXBitPrefix(value1, value2, prefixLength):
   """Compares the X first bits in the two specified values."""
   _value1, _value2 = value1, value2

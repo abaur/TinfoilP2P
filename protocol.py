@@ -135,7 +135,6 @@ class TintangledProtocol(KademliaProtocol):
 
     if not self._node._verifyMessage(message.stringToSign(), message.signedValue, message.rsaKey):
       print '##### - - - - - Did not verify message - rejects RPC: %s' % message
-      print message.args
       return
     # As written in s/kademlia the message is signed and actively valid, 
     #  if the sender address is valid and comes from a RPC response.

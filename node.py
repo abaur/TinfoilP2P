@@ -287,7 +287,8 @@ class TintangledNode(entangled.EntangledNode):
 
   def addContact(self, contact):
     #print('I : %s adds: "%s"' % (binascii.hexlify(self.id), binascii.hexlify(contact.id)))
-    self.keyCache[contact.id] = contact.rsaKey
+    if contact.rsaKey is not None:
+      self.keyCache[contact.id] = contact.rsaKey
     entangled.EntangledNode.addContact(self, contact)
 
   def publishData(self, name, data):

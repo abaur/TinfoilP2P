@@ -4,6 +4,8 @@ import msgtypes
 from entangled.kademlia.msgformat import MessageTranslator
 import util
 import Crypto
+import pickle
+
 class TintangledDefaultFormat(MessageTranslator):
   """ The default on-the-wire message format for this library """
   (
@@ -17,26 +19,22 @@ class TintangledDefaultFormat(MessageTranslator):
     headerMsgID, 
     headerNodeID, 
     headerCryptoChallengeX,
-    headerPublicKeyN,
-    headerPublicKeyE,
+    headerPublicKey,
     headerSignedValue, 
     headerPayload, 
     headerArgs
-  ) = range(9)
+  ) = range(8)
   
-
   def fromPrimitive(self, msgPrimitive):
     
     msgType = msgPrimitive[self.headerType]
 
-    rsaKey = util.constructPublicRSAKey(
-        msgPrimitive[self.headerPublicKeyN], 
-        long(msgPrimitive[self.headerPublicKeyE]))
+    rsaKey = pickle.loads(msgPrimitive[self.headerPublicKey])
 
     if msgType == self.typeRequest:
       msg = msgtypes.RequestMessage(nodeID = msgPrimitive[self.headerNodeID],
         method = msgPrimitive[self.headerPayload], 
-        methodArgs = [str(arg).decode("hex") for arg in msgPrimitive[self.headerArgs]],
+        methodArgs = pickle.loads(msgPrimitive[self.headerArgs]),
         rsaKey = rsaKey,
         cryptoChallengeX = msgPrimitive[self.headerCryptoChallengeX], 
         rpcID = msgPrimitive[self.headerMsgID],
@@ -69,13 +67,12 @@ class TintangledDefaultFormat(MessageTranslator):
     msg = {self.headerMsgID:  message.id,
       self.headerNodeID: message.nodeID,
       self.headerCryptoChallengeX: message.cryptoChallengeX,
-      self.headerPublicKeyN: message.rsaKey.n,
-      self.headerPublicKeyE: message.rsaKey.e,
-      self.headerSignedValue: message.signedValue}
+      self.headerPublicKey: pickle.dumps(message.rsaKey),
+      self.headerSignedValue: message.signedValue,}
     if isinstance(message, msgtypes.RequestMessage):
       msg[self.headerType] = self.typeRequest
       msg[self.headerPayload] = message.request
-      msg[self.headerArgs] = [str(arg).encode("hex") for arg in message.args]
+      msg[self.headerArgs] = pickle.dumps(message.args)
     elif isinstance(message, msgtypes.ErrorMessage):
       msg[self.headerType] = self.typeError
       msg[self.headerPayload] = message.exceptionType

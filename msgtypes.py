@@ -25,11 +25,11 @@ class RequestMessage(Message):
                 signedValue)
         self.request = method
         self.args = methodArgs
-    
+
     def stringToSign(self):
         #Args have some problems with encoding
         return "%s%s%s" % (self.request, 
-                [util.bin2hex(str(arg)) for arg in self.args], ###TODO: fix error with args encoding
+                self.args, ###TODO: fix error with args encoding
                 Message.stringToSign(self))
 
 class ResponseMessage(Message):
