@@ -59,7 +59,7 @@ class Client:
       fID.close()
 
       fKey = open(constants.PATH_TO_RSAKEY % self.udpPort, 'r')
-      rsaKey = pickle.load(fKey)
+      rsaKey = Crypto.PublicKey.RSA.importKey(pickle.load(fKey))
       fKey.close()
 
       fX = open(constants.PATH_TO_X % self.udpPort, 'r')
@@ -68,7 +68,7 @@ class Client:
 
     # Generate new node from scratch or based on already known values.
     self.node = TintangledNode(id = id, udpPort = self.udpPort)
-    
+
     # Save node data to file if node is new.
     if id == None:
       # Save ID, RSAKey and X to file.
@@ -77,7 +77,7 @@ class Client:
       fID.close()
 
       fKey = open(constants.PATH_TO_RSAKEY % self.udpPort, 'w')
-      pickle.dump(self.node.rsaKey, fKey)
+      pickle.dump(self.node.rsaKey.exportKey(), fKey)
       fKey.close()
 
       fX = open(constants.PATH_TO_X % self.udpPort, 'w')
