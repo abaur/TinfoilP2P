@@ -59,7 +59,7 @@ class Client:
       fID.close()
 
       fKey = open(constants.PATH_TO_RSAKEY % self.udpPort, 'r')
-      rsaKey = pickle.load(fKey)
+      rsaKey = Crypto.PublicKey.RSA.importKey(pickle.load(fKey))
       fKey.close()
 
       fX = open(constants.PATH_TO_X % self.udpPort, 'r')
@@ -68,7 +68,7 @@ class Client:
 
     # Generate new node from scratch or based on already known values.
     self.node = TintangledNode(id = id, udpPort = self.udpPort)
-    
+
     # Save node data to file if node is new.
     if id == None:
       # Save ID, RSAKey and X to file.
@@ -77,7 +77,7 @@ class Client:
       fID.close()
 
       fKey = open(constants.PATH_TO_RSAKEY % self.udpPort, 'w')
-      pickle.dump(self.node.rsaKey, fKey)
+      pickle.dump(self.node.rsaKey.exportKey(), fKey)
       fKey.close()
 
       fX = open(constants.PATH_TO_X % self.udpPort, 'w')
@@ -117,6 +117,10 @@ class Client:
         friendsID)
     # We might not have user's public key yet..
     if sharingKeyEncrypted is not None:
+      print('Storing sharing key for: %s : %s' % (
+          util.bin2hex(resourceID),
+          util.bin2hex(friendsID),
+          ))
       self.node.publishData(sharingKeyID, sharingKeyEncrypted)
     else:
       print('Couldn\'t share. Key not found.')
@@ -140,6 +144,10 @@ class Client:
       if type(result) == dict:
         for r in result:
           self.node.keyCache[userID] = pickle.loads(result[r])
+      else:
+        print('Could not find public key for: %s' % (
+            util.bin2hex(userID)
+            ))
     publicKeyDefer.addCallback(_addPublicKeyToLocalCache)
     if callback is not None:
       publicKeyDefer.addCallback(callback)
@@ -257,7 +265,7 @@ class Client:
     keyID = self.node.getNameID(keyName)
     def _processSequenceNumber(result):
       if type(result) == dict:
-        lastSequenceNumber = result[keyID]
+        lastSequenceNumber = int(result[keyID])
         for n in range(lastKnownSequenceNumber, (lastSequenceNumber + 1)):
           # There isn't actually any post 0 (which is kinda stupid..)
           if n == 0:
@@ -276,8 +284,16 @@ class Client:
               for r in result:
                 self.sharingKeys[postID] = self.node.rsaKey.decrypt(
                     result[r][0])
+            else:
+              print('Could not find sharing key for: %s : %s' % (
+                  util.bin2hex(postID),
+                  util.bin2hex(self.node.id),
+                  ))
           self.node.iterativeFindValue(sharingKeyID).addCallback(
               _processSharingKeyResult)
+      else:
+        print('Could not find sequence number for: %s' % (
+            util.bin2hex(friendsID)))
     self.node.iterativeFindValue(keyID).addCallback(_processSequenceNumber)
     # NOTE(cskau): it's all deferred so we can't do much here
     # TODO(cskau): maybe just return cache?
