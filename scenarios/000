@@ -1,0 +1,47 @@
+# http://localhost:24000/
+#  31b5234f73e4fbae83a1ce68a24129e1faf54599
+# http://localhost:24001/
+#  cc9530775b5e938e75846e6bac08db3b66a73129
+# http://localhost:24002/
+#  e1264a1cd68dbb3f2683665b62517961066bd0a9
+# http://localhost:24003/
+#  7595a869a7b5aa722cd9f64d11e79748c5dde066
+# http://localhost:24004/
+#  79c6beb8f4f22e2d8dbbbd8a11647c13672f5d7e
+# http://localhost:24005/
+#  d0db01de6d67131fef809eecc0440fbe1bb3b3ae
+# http://localhost:24006/
+#  2bff05ad06179e31ee833e8b0d7d875f9b60c741
+# http://localhost:24007/
+#  d73fde1a367e5a1ff123494468fd31ef5e494f68
+# http://localhost:24008/
+#  93bb56c23e98b916b5c83bb3ce51edfe4d7df995
+# http://localhost:24009/
+#  01cf168751d5410e5f812e36d7fa42a0693c5b72
+
+# Subscribe: 24001 -> 24005
+http://localhost:24001/addfriend?friendsid=d0db01de6d67131fef809eecc0440fbe1bb3b3ae
+# Subscribe: 24001 -> 24007
+http://localhost:24001/addfriend?friendsid=d73fde1a367e5a1ff123494468fd31ef5e494f68
+
+# Post 24000
+http://localhost:24000/post?content=Hello%20World%20from%2024000
+# Post 24001
+http://localhost:24001/post?content=Hello%20World%20from%2024001
+# Post 24002
+http://localhost:24002/post?content=Hello%20World%20from%2024002
+# Post 24003
+http://localhost:24003/post?content=Hello%20World%20from%2024003
+# Post 24004
+http://localhost:24004/post?content=Hello%20World%20from%2024004
+
+# Post 24007
+http://localhost:24007/post?content=ども！
+
+# Post 24005
+http://localhost:24005/post?content=UFOs!!
+http://localhost:24005/post?content=The%20Government%20dunnit!
+
+# Share 24007 -> 1 -> 24001
+http://localhost:24007/post?postid=9854832262d630f29175035985d593e18ef7deaf&friendsid=cc9530775b5e938e75846e6bac08db3b66a73129
+
