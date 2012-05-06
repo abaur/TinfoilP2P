@@ -243,15 +243,17 @@ class Client:
   def _processUpdatesResult(self, result):
     """Process post updates when we get them as callbacks."""
     for resultKey in result:
-      if type(resultKey) == entangled.kademlia.contact.Contact:
+      if isinstance(resultKey, entangled.kademlia.contact.Contact):
         print("WARN: key not found!")
         return
-      postID = resultKey
-      friendsID, n = self.postIDNameTuple[postID]
-      self.postCache[friendsID][n] = {
-        'post': result[postID],
-        'id': postID,
-      }
+      # for some reason a contact is mixed in at times..
+      if not isinstance(result[resultKey], entangled.kademlia.contact.Contact):
+        postID = resultKey
+        friendsID, n = self.postIDNameTuple[postID]
+        self.postCache[friendsID][n] = {
+          'post': result[postID],
+          'id': postID,
+        }
 
   def getUpdates(self, friendsID, lastKnownSequenceNumber):
     """ Check for and fetch new updates on user(s)
@@ -293,6 +295,7 @@ class Client:
           self.node.iterativeFindValue(sharingKeyID).addCallback(
               _processSharingKeyResult)
       else:
+        print(self.node.port, result[0].port)
         print('Could not find sequence number for: %s' % (
             util.bin2hex(friendsID)))
     self.node.iterativeFindValue(keyID).addCallback(_processSequenceNumber)

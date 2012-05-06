@@ -110,9 +110,7 @@ class TintangledNode(entangled.EntangledNode):
       """ @type responseMsg: kademlia.msgtypes.ResponseMessage """
       # The "raw response" tuple contains the response message, and
       #  the originating address info
-
       responseMsg = responseTuple[0]
-
       originAddress = responseTuple[1] # tuple: (ip adress, udp port)
       # Make sure the responding node is valid, and abort the operation if it isn't
       if responseMsg.nodeID in activeContacts or responseMsg.nodeID == self.id:
@@ -291,18 +289,20 @@ class TintangledNode(entangled.EntangledNode):
   # -*- Logging Decorators -*-
 
   def addContact(self, contact):
-    #print('I : %s adds: "%s"' % (self.port, contact.port))
+#    print('addContact : %s adds: %s' % (
+#        binascii.hexlify(self.id),
+#        binascii.hexlify(contact.id)))
+#    print('addContact : %s adds: %s' % (self.port, contact.port))
     if contact.rsaKey is not None:
       self.keyCache[contact.id] = contact.rsaKey
     entangled.EntangledNode.addContact(self, contact)
 
-  def publishData(self, name, data):
-    #print('publishData: "%s":"%s"' % (name, data))
-    entangled.EntangledNode.publishData(self, name, data)
+#  def publishData(self, name, data):
+#    print('publishData: "%s":"%s"' % (name, data))
+#    entangled.EntangledNode.publishData(self, name, data)
 
-  @rpcmethod
-  def store(self, key, value, originalPublisherID=None, age=0, **kwargs):
-    #print('store: "%s":"%s" (%s, %s)' % (key, value, originalPublisherID, age))
-    entangled.EntangledNode.store(self, key, value, originalPublisherID, age, **kwargs)
+#  @rpcmethod
+#  def store(self, key, value, originalPublisherID=None, age=0, **kwargs):
+#    print('store: "%s":"%s" (%s, %s)' % (key, value, originalPublisherID, age))
+#    entangled.EntangledNode.store(self, key, value, originalPublisherID, age, **kwargs)
 
-# end-of-node.py
