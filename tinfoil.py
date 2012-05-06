@@ -285,8 +285,9 @@ class Client:
           def _processSharingKeyResult(result):
             if type(result) == dict:
               for r in result:
-                self.sharingKeys[postID] = self.node.rsaKey.decrypt(
-                    result[r][0])
+                if not isinstance(result[r], entangled.kademlia.contact.Contact):
+                  self.sharingKeys[postID] = self.node.rsaKey.decrypt(
+                      result[r][0])
             else:
               print('Could not find sharing key for: %s : %s' % (
                   util.bin2hex(postID),
@@ -295,7 +296,6 @@ class Client:
           self.node.iterativeFindValue(sharingKeyID).addCallback(
               _processSharingKeyResult)
       else:
-        print(self.node.port, result[0].port)
         print('Could not find sequence number for: %s' % (
             util.bin2hex(friendsID)))
     self.node.iterativeFindValue(keyID).addCallback(_processSequenceNumber)

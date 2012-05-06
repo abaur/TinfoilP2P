@@ -83,6 +83,7 @@ class TinFront(twisted.web.resource.Resource):
       <form action="/share" method="get">
         <input type="text" name="postid" placeholder="Post's ID" />
         <input type="text" name="friendsid" placeholder="Friend's ID" />
+        <input type="submit" value="Share" />
       </form>
       ''' % {
         'digest': self.getDigestRender(self.node.getDigest()),

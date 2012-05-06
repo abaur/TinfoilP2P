@@ -43,5 +43,5 @@ http://localhost:24005/post?content=UFOs!!
 http://localhost:24005/post?content=The%20Government%20dunnit!
 
 # Share 24007 -> 1 -> 24001
-http://localhost:24007/post?postid=9854832262d630f29175035985d593e18ef7deaf&friendsid=cc9530775b5e938e75846e6bac08db3b66a73129
+http://localhost:24007/share?postid=9854832262d630f29175035985d593e18ef7deaf&friendsid=cc9530775b5e938e75846e6bac08db3b66a73129
 
