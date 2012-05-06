@@ -35,7 +35,7 @@ class TintangledProtocol(KademliaProtocol):
   def _sendResponse(self, contact, rpcID, response):
     """ Send a RPC response to the specified contact"""
     msg = msgtypes.ResponseMessage(rpcID, self._node.id,
-      self._node.rsaKey, self._node.x, response)
+      self._node.rsaKey.publickey(), self._node.x, response)
     msg.signedValue = self._node._signMessage(msg.stringToSign())
     msgPrimitive = self._translator.toPrimitive(msg)
     encodedMsg = self._encoder.encode(msgPrimitive)
@@ -43,7 +43,7 @@ class TintangledProtocol(KademliaProtocol):
 
   def _sendError(self, contact, rpcID, exceptionType, exceptionMessage):
     """ Send an RPC error message to the specified contact"""
-    msg = msgtypes.ErrorMessage(rpcID, self._node.id,self._node.rsaKey, 
+    msg = msgtypes.ErrorMessage(rpcID, self._node.id,self._node.rsaKey.publickey(), 
       self._node.x, exceptionType, exceptionMessage)
     msg.signedValue = self._node._signMessage(msg.stringToSign())
     msgPrimitive = self._translator.toPrimitive(msg)
@@ -78,7 +78,7 @@ class TintangledProtocol(KademliaProtocol):
     @rtype: twisted.internet.defer.Deferred
         """
     msg = msgtypes.RequestMessage(nodeID = self._node.id, method = method,
-        methodArgs = args, rsaKey = self._node.rsaKey, 
+        methodArgs = args, rsaKey = self._node.rsaKey.publickey(), 
         cryptoChallengeX = self._node.x)
     msg.signedValue = self._node._signMessage(msg.stringToSign())
 
@@ -129,6 +129,7 @@ class TintangledProtocol(KademliaProtocol):
     message = self._translator.fromPrimitive(msgPrimitive)
     remoteContact = Contact(message.nodeID, address[0], address[1], self)
     remoteContact.rsaKey = message.rsaKey
+    #print 'Receied RPC from: %s to: %s' % (remoteContact.port, self._node.port)
     if not self._verifyID(remoteContact.id, message.cryptoChallengeX):
       print 'Id not verified - rejects RPC'
       return

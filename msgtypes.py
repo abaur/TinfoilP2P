@@ -42,8 +42,7 @@ class ResponseMessage(Message):
 
     def stringToSign(self):
         #Response does also have problems with the encoding
-        return "%s%s" % (self.response.encode("hex"), 
-                Message.stringToSign(self))
+        return "%s%s" % (str(self.response), Message.stringToSign(self))
 
 class ErrorMessage(ResponseMessage):
     """ Message containing the error from an unsuccessful RPC request """

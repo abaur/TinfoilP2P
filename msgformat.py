@@ -44,7 +44,7 @@ class TintangledDefaultFormat(MessageTranslator):
         nodeID = msgPrimitive[self.headerNodeID], 
         rsaKey = rsaKey, 
         cryptoChallengeX = msgPrimitive[self.headerCryptoChallengeX],
-        response = msgPrimitive[self.headerPayload],
+        response = pickle.loads(msgPrimitive[self.headerPayload]),
         signedValue = msgPrimitive[self.headerSignedValue])
     elif msgType == self.typeError:
       msg = msgtypes.ErrorMessage(msgPrimitive[self.headerMsgID], 
@@ -79,5 +79,5 @@ class TintangledDefaultFormat(MessageTranslator):
       msg[self.headerArgs] = message.response
     elif isinstance(message, msgtypes.ResponseMessage):
       msg[self.headerType] = self.typeResponse
-      msg[self.headerPayload] = message.response
+      msg[self.headerPayload] = pickle.dumps(message.response)
     return msg

@@ -29,12 +29,15 @@ def rpcmethod(func):
 class TintangledNode(entangled.EntangledNode):
 
   def __init__(
-      self, id = None, udpPort = 4000, dataStore = None, routingTable = None,
-      networkProtocol = None):
+      self, id = None, udpPort = 4000, dataStore = None, routingTable = None, 
+      vanillaEntangled = False):
     """ Initializes a TintangledNode."""
     self.keyCache = {}
     self.rsaKey = None
-
+    if vanillaEntangled:
+      networkProtocol = entangled.kademlia.protocol.KademliaProtocol(self)
+    else:
+      networkProtocol = protocol.TintangledProtocol(self)
     if id == None:
       id = self._generateRandomID()
 
@@ -42,7 +45,7 @@ class TintangledNode(entangled.EntangledNode):
         self, id, udpPort, dataStore, routingTable,
         # TODO(cskau): This protocol seems buggy.
         # It doesn't seem to store in the network - only locally at the orig node
-        networkProtocol = protocol.TintangledProtocol(self))
+        networkProtocol = networkProtocol)
 
   def _iterativeFind(self, key, startupShortlist=None, rpc='findNode'):
     """ The basic Kademlia iterative lookup operation (for nodes/values)
@@ -107,7 +110,9 @@ class TintangledNode(entangled.EntangledNode):
       """ @type responseMsg: kademlia.msgtypes.ResponseMessage """
       # The "raw response" tuple contains the response message, and
       #  the originating address info
+
       responseMsg = responseTuple[0]
+
       originAddress = responseTuple[1] # tuple: (ip adress, udp port)
       # Make sure the responding node is valid, and abort the operation if it isn't
       if responseMsg.nodeID in activeContacts or responseMsg.nodeID == self.id:
@@ -286,7 +291,7 @@ class TintangledNode(entangled.EntangledNode):
   # -*- Logging Decorators -*-
 
   def addContact(self, contact):
-    #print('I : %s adds: "%s"' % (binascii.hexlify(self.id), binascii.hexlify(contact.id)))
+    #print('I : %s adds: "%s"' % (self.port, contact.port))
     if contact.rsaKey is not None:
       self.keyCache[contact.id] = contact.rsaKey
     entangled.EntangledNode.addContact(self, contact)

@@ -26,7 +26,7 @@ class Client:
   Builds the "social" features ontop of the underlying network framework.
   '''
 
-  def __init__(self, udpPort = 4000):
+  def __init__(self, udpPort = 4000, vanillaEntangled = False):
     '''Initializes a Tinfoil Node.'''
     self.udpPort = udpPort
     self.postCache = {}
@@ -36,6 +36,7 @@ class Client:
     # TODO(cskau): Retrieve these every time we re-join.
     self.sharingKeys = {}
     self.postIDNameTuple = {}
+    self.vanillaEntangled = vanillaEntangled
 
   def join(self, knownNodes):
     """Join the social network.
@@ -67,7 +68,7 @@ class Client:
       fX.close()
 
     # Generate new node from scratch or based on already known values.
-    self.node = TintangledNode(id = id, udpPort = self.udpPort)
+    self.node = TintangledNode(id = id, udpPort = self.udpPort, vanillaEntangled = self.vanillaEntangled)
 
     # Save node data to file if node is new.
     if id == None:
@@ -90,7 +91,7 @@ class Client:
       # TintangledNode.__init__.
 
     self.node.joinNetwork(knownNodes)
-    print('Your ID is: %s   - Tell your friends!' % self.node.id.encode('hex'))
+    #print('Your ID is: %s   - Tell your friends!' % self.node.id.encode('hex'))
     self.node.keyCache[self.node.id] = self.node.rsaKey
     # Add ourself to our friends list, so we can see our own posts too..
     self.addFriend(self.node.id)
@@ -346,19 +347,22 @@ if __name__ == '__main__':
           'Usage:\n%s UDP_PORT [KNOWN_NODE_IP KNOWN_NODE_PORT] NODE_ID' %
           sys.argv[0])
       sys.exit(1)
+  #Add vanilla argument
+  vanillaVersion = "-v" in sys.argv
 
-  if len(sys.argv) >= 4:
+  if vanillaVersion and len(sys.argv) >= 5 or not vanillaVersion and len(sys.argv) >= 4:
     knownNodes = [(sys.argv[2], int(sys.argv[3]))]
   else:
     knownNodes = None
 
+
   # Create Tinfoil node, join network
-  client = Client(udpPort=usePort)
+  client = Client(udpPort=usePort, vanillaEntangled = vanillaVersion)
 
   # Add HTTP "GUI"
   import tinfront
   httpPort = (usePort + 20000) % 65535
   front = tinfront.TinFront(httpPort, client)
-  print('Front-end running at http://localhost:%i' % httpPort)
+  #print('Front-end running at http://localhost:%i' % httpPort)
 
   client.join(knownNodes)

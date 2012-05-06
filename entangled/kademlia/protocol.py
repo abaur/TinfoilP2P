@@ -113,7 +113,7 @@ class KademliaProtocol(protocol.DatagramProtocol):
         
         message = self._translator.fromPrimitive(msgPrimitive)
         remoteContact = Contact(message.nodeID, address[0], address[1], self)
-        
+        print 'Receied RPC from: %s to: %s' % (remoteContact.port, self._node.port)
         # Refresh the remote node's details in the local node's k-buckets
         self._node.addContact(remoteContact)
         if isinstance(message, msgtypes.RequestMessage):
@@ -232,6 +232,7 @@ class KademliaProtocol(protocol.DatagramProtocol):
         """ Executes a local function in response to an RPC request """
         # Set up the deferred callchain
         def handleError(f):
+            print f
             self._sendError(senderContact, rpcID, f.type, f.getErrorMessage())
 
         def handleResult(result):
