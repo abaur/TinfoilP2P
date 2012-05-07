@@ -89,7 +89,8 @@ if __name__ == '__main__':
       def __getitem__(self, key):
         if not dict.has_key(self, key):
           return hashlib.sha1(
-              dict.get(self, key[:5]) + key[5:]).digest().encode('hex')
+              dict.get(self, key[:5]).decode('hex') + key[5:]
+              ).digest().encode('hex')
         return dict.get(self, key)
     scenarioDict = HackyDict()
     for port in range(startPort, (port + (amount - 1))):
@@ -99,7 +100,6 @@ if __name__ == '__main__':
       for line in scenario_file:
         url = line.strip().split('#')[0]
         if len(url):
-          print(url % scenarioDict)
           urllib2.urlopen(url % scenarioDict)
           time.sleep(0.3)
     # sleep while network is runnning

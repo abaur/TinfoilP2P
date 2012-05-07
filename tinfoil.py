@@ -281,7 +281,6 @@ class Client:
           if n == 0:
             continue
           postName = ('%s:post:%s' % (friendsID, n))
-          print(postName)
           postID = self.node.getNameID(postName)
           self.postIDNameTuple[postID] = (friendsID, n)
           # ask network for updates
@@ -325,19 +324,21 @@ class Client:
         else:
           sharingKeyName = ('%s:share:%s' % (postID, self.node.id))
           sharingKeyID = self.node.getNameID(sharingKeyName)
-          def _processSharingKeyResult(result):
-            if type(result) == dict:
-              for r in result:
-                if not isinstance(result[r], entangled.kademlia.contact.Contact):
-                  self.sharingKeys[postID] = self.node.rsaKey.decrypt(
-                      result[r][0])
-            else:
-              print('Could not find sharing key for: %s : %s' % (
-                  util.bin2hex(postID),
-                  util.bin2hex(self.node.id),
-                  ))
+          def _createClosureForPSKR(postID):
+            def _processSharingKeyResult(result):
+              if type(result) == dict:
+                for r in result:
+                  if not isinstance(result[r], entangled.kademlia.contact.Contact):
+                    self.sharingKeys[postID] = self.node.rsaKey.decrypt(
+                        result[r][0])
+              else:
+                print('Could not find sharing key for: %s : %s' % (
+                    util.bin2hex(postID),
+                    util.bin2hex(self.node.id),
+                    ))
+            return _processSharingKeyResult
           self.node.iterativeFindValue(sharingKeyID).addCallback(
-              _processSharingKeyResult)
+              _createClosureForPSKR(postID))
       # get last n from this friend
       digest[f] = self.postCache[f].items()[-n:][::-1]
     return digest
