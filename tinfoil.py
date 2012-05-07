@@ -91,7 +91,7 @@ class Client:
       # TintangledNode.__init__.
 
     self.node.joinNetwork(knownNodes)
-    #print('Your ID is: %s   - Tell your friends!' % self.node.id.encode('hex'))
+    print('Your ID is: %s   - Tell your friends!' % self.node.id.encode('hex'))
     self.node.keyCache[self.node.id] = self.node.rsaKey
     # Add ourself to our friends list, so we can see our own posts too..
     self.addFriend(self.node.id)
@@ -112,19 +112,22 @@ class Client:
         "SharingKey(resourceID, otherUserID)",
         sharingKeys[resourceID][otherUserID])
     """
-    sharingKeyID = ('%s:share:%s' % (resourceID, friendsID))
-    sharingKeyEncrypted = self._encryptForUser(
-        self.sharingKeys[resourceID],
-        friendsID)
-    # We might not have user's public key yet..
-    if sharingKeyEncrypted is not None:
-      print('Storing sharing key for: %s : %s' % (
-          util.bin2hex(resourceID),
-          util.bin2hex(friendsID),
-          ))
-      self.node.publishData(sharingKeyID, sharingKeyEncrypted)
+    if not resourceID in self.sharingKeys:
+      print('Error: Can\'t share. Post sharing key not found (yet).')
     else:
-      print('Couldn\'t share. Key not found.')
+      sharingKeyName = ('%s:share:%s' % (resourceID, friendsID))
+      sharingKeyEncrypted = self._encryptForUser(
+          self.sharingKeys[resourceID],
+          friendsID)
+      # We might not have user's public key yet..
+      if sharingKeyEncrypted is not None:
+        print('Storing sharing key for: %s : %s' % (
+            util.bin2hex(resourceID),
+            util.bin2hex(friendsID),
+            ))
+        self.node.publishData(sharingKeyName, sharingKeyEncrypted)
+      else:
+        print('Couldn\'t share. Friend\'s public key not found.')
 
   def _encryptForUser(self, content, userID, callback = None):
     """Encrypt some content asymetrically with user's public key."""
@@ -196,7 +199,7 @@ class Client:
     latestName = ('%s:latest' % (self.node.id))
     latestDefer = self.node.publishData(latestName, newSequenceNumber)
     # store post key by sharing the post with ourself
-    self.share(postID, self.node.id)
+    postDefer.addCallback(lambda result: self.share(postID, self.node.id))
 
   def _getSequenceNumber(self):
     """Return next, unused sequence number unique to this user."""
@@ -214,9 +217,11 @@ class Client:
     """
 
     if not len(key) in [16, 24, 32]:
-      raise 'Specified key had an invalid key length, it should be 16, 24 or 32.'
+      raise Exception(
+          'Specified key had an invalid key length, it should be 16, 24 or 32.')
     if len(nonce) != constants.NONCE_LENGTH:
-      raise 'Specified nonce had an invalid key length, it should be 16.'
+      raise Exception(
+          'Specified nonce had an invalid key length, it should be 16.')
 
     aesKey = Crypto.Cipher.AES.new(key, Crypto.Cipher.AES.MODE_CBC, nonce)
     # NOTE(cskau): *input* has to be a 16-multiple, pad with whitespace
@@ -231,9 +236,11 @@ class Client:
     """
 
     if not len(key) in [16, 24, 32]:
-      raise 'Specified key had an invalid key length, it should be 16, 24 or 32.'
+      raise Exception(
+          'Specified key had an invalid key length, it should be 16, 24 or 32.')
     if len(nonce) != constants.NONCE_LENGTH:
-      raise 'Specified nonce had an invalid key length, it should be 16.'
+      raise Exception(
+          'Specified nonce had an invalid key length, it should be 16.')
 
     aesKey = Crypto.Cipher.AES.new(key, Crypto.Cipher.AES.MODE_CBC, nonce)
     decryptedMessage = aesKey.decrypt(post)
@@ -274,27 +281,12 @@ class Client:
           if n == 0:
             continue
           postName = ('%s:post:%s' % (friendsID, n))
+          print(postName)
           postID = self.node.getNameID(postName)
           self.postIDNameTuple[postID] = (friendsID, n)
           # ask network for updates
           self.node.iterativeFindValue(postID).addCallback(
               self._processUpdatesResult)
-          # ask for sharing keys too
-          sharingKeyName = ('%s:share:%s' % (postID, self.node.id))
-          sharingKeyID = self.node.getNameID(sharingKeyName)
-          def _processSharingKeyResult(result):
-            if type(result) == dict:
-              for r in result:
-                if not isinstance(result[r], entangled.kademlia.contact.Contact):
-                  self.sharingKeys[postID] = self.node.rsaKey.decrypt(
-                      result[r][0])
-            else:
-              print('Could not find sharing key for: %s : %s' % (
-                  util.bin2hex(postID),
-                  util.bin2hex(self.node.id),
-                  ))
-          self.node.iterativeFindValue(sharingKeyID).addCallback(
-              _processSharingKeyResult)
       else:
         print('Could not find sequence number for: %s' % (
             util.bin2hex(friendsID)))
@@ -330,6 +322,22 @@ class Client:
                   self.sharingKeys[postID],
                   util.int2bin(k, nbytes = constants.NONCE_LENGTH),
                   self.postCache[f][k]['post'])})
+        else:
+          sharingKeyName = ('%s:share:%s' % (postID, self.node.id))
+          sharingKeyID = self.node.getNameID(sharingKeyName)
+          def _processSharingKeyResult(result):
+            if type(result) == dict:
+              for r in result:
+                if not isinstance(result[r], entangled.kademlia.contact.Contact):
+                  self.sharingKeys[postID] = self.node.rsaKey.decrypt(
+                      result[r][0])
+            else:
+              print('Could not find sharing key for: %s : %s' % (
+                  util.bin2hex(postID),
+                  util.bin2hex(self.node.id),
+                  ))
+          self.node.iterativeFindValue(sharingKeyID).addCallback(
+              _processSharingKeyResult)
       # get last n from this friend
       digest[f] = self.postCache[f].items()[-n:][::-1]
     return digest

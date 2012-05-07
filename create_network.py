@@ -81,16 +81,32 @@ if __name__ == '__main__':
   try:
     # run scenario script (a bunch of HTTP GETs)
     raw_input('Press enter to start scenario..')
+    import re
+    r = re.compile('Your ID is: (.*)\n')
+    import hashlib
+    # hack-hack-hack ...
+    class HackyDict(dict):
+      def __getitem__(self, key):
+        if not dict.has_key(self, key):
+          return hashlib.sha1(
+              dict.get(self, key[:5]) + key[5:]).digest().encode('hex')
+        return dict.get(self, key)
+    scenarioDict = HackyDict()
+    for port in range(startPort, (port + (amount - 1))):
+      html = urllib2.urlopen('http://localhost:2%s' % (port)).read()
+      scenarioDict['2%s' % port] = r.search(html).group(1)
     if scenario_file:
       for line in scenario_file:
         url = line.strip().split('#')[0]
         if len(url):
-          urllib2.urlopen(url)
-          time.sleep(0.15)
+          print(url % scenarioDict)
+          urllib2.urlopen(url % scenarioDict)
+          time.sleep(0.3)
     # sleep while network is runnning
     while 1:
       time.sleep(1)
-  except KeyboardInterrupt:
+  except KeyboardInterrupt, e:
+    print(e)
     pass
   finally:
     destroyNetwork(nodes)
