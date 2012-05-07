@@ -13,12 +13,11 @@ doom).
   - Clement Scheelfeldt Skau, clemenetskau@gmail.com
   - Peter Urbak, peter@dragonwasrobot.com
 - **Created:** 2012-04-11
-- **Last Modified:** 2012-04-25
+- **Last Modified:** 2012-05-07
 - **URL:** https://github.com/abaur/TinfoilP2P
 
 ## Todo
 
 - Methods
   - Make sibling list as described in s/kademlia section 4.2
-	- Cache messages or status updates
-	- Make replication management like PASTRY (like Pastry?)
+  - Cache messages or status updates
