@@ -16,6 +16,7 @@ import util
 import binascii
 import constants
 import Crypto.Hash.SHA
+import Crypto.PublicKey.RSA
 import hashlib
 import random
 import time
@@ -39,6 +40,7 @@ class TintangledNode(entangled.EntangledNode):
     else:
       networkProtocol = protocol.TintangledProtocol(self)
     if id == None:
+      print('Generating a crypto ID...')
       id = self._generateRandomID()
 
     entangled.EntangledNode.__init__(
@@ -235,16 +237,18 @@ class TintangledNode(entangled.EntangledNode):
     startIteration()
     return outerDf
 
-  def _generateRandomID(self, complexityValue = 2):
+  def _generateRandomID(
+      self,
+      c1 = constants.CRYPTO_CHALLENGE_C1,
+      c2 = constants.CRYPTO_CHALLENGE_C2):
     """Generates the NodeID by solving two cryptographic puzzles."""
-    print('Generating a crypto ID...')
     # Solve the static cryptographic puzzle.
     rsaKey = None
     p = 0x1 # non-zero value
     pub = None
 
     randomStream = Crypto.Random.new().read
-    while not util.hasNZeroBitPrefix(p, constants.CRYPTO_CHALLENGE_C1):
+    while not util.hasNZeroBitPrefix(p, c1):
       rsaKey = Crypto.PublicKey.RSA.generate(constants.RSA_BITS, randomStream)
       pub = str(rsaKey.n) + str(rsaKey.e)
       p = util.hsh2int(Crypto.Hash.SHA.new(Crypto.Hash.SHA.new(pub).digest()))
@@ -256,7 +260,7 @@ class TintangledNode(entangled.EntangledNode):
     # Solve the dynamic cryptographic puzzle.
     p, x = 0x1, None
 
-    while not util.hasNZeroBitPrefix(p, constants.CRYPTO_CHALLENGE_C2):
+    while not util.hasNZeroBitPrefix(p, c2):
       x = util.bin2int(util.generateRandomString(constants.ID_LENGTH))
       # This is madness!
       p = util.hsh2int(
